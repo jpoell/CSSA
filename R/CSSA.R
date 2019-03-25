@@ -428,7 +428,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #'   that this number is used for the "time base" in the poisson.test function
 #'   call. It can therefore also be the median reads, or a sum of a subset of
 #'   control genes.
-#' @param sumreads2 Integer. Sum of all sequencing reads in control sample. Note
+#' @param sumreads0 Integer. Sum of all sequencing reads in control sample. Note
 #'   that this number is used for the "time base" in the poisson.test function
 #'   call. It can therefore also be the median reads, or a sum of a subset of
 #'   control genes. Make sure to treat test and control equally.
@@ -503,13 +503,23 @@ radjust <- function(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
 #' nestedradjust is an extension of radjust. It is specifically applicable for
 #' comparison of two samples with an independent time base.
 #'
-#' @param reads1 Integer. Sequencing reads of feature in test sample
-#' @param reads0 Integer. Sequencing reads of feature in control sample
-#' @param sumreads1 Integer. Sum of all sequencing reads in test sample. Note
+#' @param mtreads1 Integer. Sequencing reads of feature in test sample, t1
+#' @param wtreads1 Integer. Sequencing reads of feature in control sample, t1
+#' @param mtreads0 Integer. Sequencing reads of feature in test sample, t0
+#' @param wtreads0 Integer. Sequencing reads of feature in control sample, t0
+#' @param srmt1 Integer. Sum of all sequencing reads in test sample, t1. Note
 #'   that this number is used for the "time base" in the poisson.test function
 #'   call. It can therefore also be the median reads, or a sum of a subset of
 #'   control genes.
-#' @param sumreads2 Integer. Sum of all sequencing reads in control sample. Note
+#' @param srwt1 Integer. Sum of all sequencing reads in control sample, t1. Note
+#'   that this number is used for the "time base" in the poisson.test function
+#'   call. It can therefore also be the median reads, or a sum of a subset of
+#'   control genes. Make sure to treat test and control equally.
+#' @param srmt0 Integer. Sum of all sequencing reads in test sample, t0. Note
+#'   that this number is used for the "time base" in the poisson.test function
+#'   call. It can therefore also be the median reads, or a sum of a subset of
+#'   control genes.
+#' @param srwt0 Integer. Sum of all sequencing reads in control sample, t0. Note
 #'   that this number is used for the "time base" in the poisson.test function
 #'   call. It can therefore also be the median reads, or a sum of a subset of
 #'   control genes. Make sure to treat test and control equally.

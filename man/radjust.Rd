@@ -4,8 +4,8 @@
 \alias{radjust}
 \title{Calculate rate ratios restricted by confidence level}
 \usage{
-radjust(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01, log = TRUE,
-  belowxreads = FALSE)
+radjust(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
+  log = TRUE, belowxreads = FALSE)
 }
 \arguments{
 \item{reads1}{Integer. Sequencing reads of feature in test sample}
@@ -17,6 +17,11 @@ that this number is used for the "time base" in the poisson.test function
 call. It can therefore also be the median reads, or a sum of a subset of
 control genes.}
 
+\item{sumreads0}{Integer. Sum of all sequencing reads in control sample. Note
+that this number is used for the "time base" in the poisson.test function
+call. It can therefore also be the median reads, or a sum of a subset of
+control genes. Make sure to treat test and control equally.}
+
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
 FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
 
@@ -25,11 +30,6 @@ log2-transformed. Default = TRUE}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}
-
-\item{sumreads2}{Integer. Sum of all sequencing reads in control sample. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes. Make sure to treat test and control equally.}
 }
 \value{
 Returns the (log2-transformed) adjusted rate ratio.

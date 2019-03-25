@@ -5,10 +5,10 @@
 \title{Simulate a CRISPR-Cas9 pooled screen}
 \usage{
 CRISPRsim(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
-  harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0, seqdepth,
-  offtargets = FALSE, allseed = NULL, gseed, fseed, dseed, eseed, oseed,
-  t0seed, repseed, grm = 1, perfectsampling = FALSE, perfectseq = FALSE,
-  outputfile)
+  harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
+  seqdepth, offtargets = FALSE, allseed = NULL, gseed, fseed, dseed,
+  eseed, oseed, t0seed, repseed, grm = 1, perfectsampling = FALSE,
+  perfectseq = FALSE, outputfile)
 }
 \arguments{
 \item{genes}{Single integer or character vector. Specify how many or which

@@ -8,6 +8,34 @@ nestedradjust(mtreads1, wtreads1, mtreads0, wtreads0, srmt1, srwt1, srmt0,
   srwt0, conf.level = 0.01, log = TRUE, belowxreads = FALSE)
 }
 \arguments{
+\item{mtreads1}{Integer. Sequencing reads of feature in test sample, t1}
+
+\item{wtreads1}{Integer. Sequencing reads of feature in control sample, t1}
+
+\item{mtreads0}{Integer. Sequencing reads of feature in test sample, t0}
+
+\item{wtreads0}{Integer. Sequencing reads of feature in control sample, t0}
+
+\item{srmt1}{Integer. Sum of all sequencing reads in test sample, t1. Note
+that this number is used for the "time base" in the poisson.test function
+call. It can therefore also be the median reads, or a sum of a subset of
+control genes.}
+
+\item{srwt1}{Integer. Sum of all sequencing reads in control sample, t1. Note
+that this number is used for the "time base" in the poisson.test function
+call. It can therefore also be the median reads, or a sum of a subset of
+control genes. Make sure to treat test and control equally.}
+
+\item{srmt0}{Integer. Sum of all sequencing reads in test sample, t0. Note
+that this number is used for the "time base" in the poisson.test function
+call. It can therefore also be the median reads, or a sum of a subset of
+control genes.}
+
+\item{srwt0}{Integer. Sum of all sequencing reads in control sample, t0. Note
+that this number is used for the "time base" in the poisson.test function
+call. It can therefore also be the median reads, or a sum of a subset of
+control genes. Make sure to treat test and control equally.}
+
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
 FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
 
@@ -16,20 +44,6 @@ log2-transformed. Default = TRUE}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}
-
-\item{reads1}{Integer. Sequencing reads of feature in test sample}
-
-\item{reads0}{Integer. Sequencing reads of feature in control sample}
-
-\item{sumreads1}{Integer. Sum of all sequencing reads in test sample. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes.}
-
-\item{sumreads2}{Integer. Sum of all sequencing reads in control sample. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes. Make sure to treat test and control equally.}
 }
 \value{
 Returns the (log2-transformed) adjusted rate ratio.
