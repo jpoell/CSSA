@@ -5,7 +5,7 @@
 \title{Derive growth-modifying effect of gene knockout in pooled experiments}
 \usage{
 getdeg(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
-  skipcutoff = FALSE, correctab = FALSE)
+  skipcutoff = FALSE, correctab = TRUE)
 }
 \arguments{
 \item{guides}{Character vector. Guides are assumed to start with the gene
@@ -35,10 +35,10 @@ second best guides of each gene as well. Default = TRUE}
 sizes of genes with maximum absolute rate ratios below this cut-off.
 Default = FALSE}
 
-\item{correctab}{Logical. When \code{a != b}, it should be possible (and
+\item{correctab}{Logical. When \code{a != b}, it is be possible (and
 necessary?) to mathematically correct for this difference. If you analyze
 an experiment with unequal a and b, try both with and without correction
-and read the notes below. Default = FALSE}
+and read the notes below. Default = TRUE}
 }
 \value{
 Returns a list with the following: \itemize{ \item{d}{ - gene
@@ -46,7 +46,7 @@ Returns a list with the following: \itemize{ \item{d}{ - gene
   on straight lethality based on the second-best guide} \item{e}{ - gene
   knocout effects on sensitization} \item{e2}{ - gene knocout effects on
   sensitization based on the second-best guide} \item{g}{ - estimated guide
-  efficacy} \item{i}{ - within-gene index of the best guide} \item{j}{ - 
+  efficacy} \item{i}{ - within-gene index of the best guide} \item{j}{ -
   within-gene index of the second-best guide} }
 }
 \description{
@@ -82,11 +82,11 @@ getdeg derives gene knockout effect sizes based on rate ratios.
 \note{
 When comparing two experimental arms that have had different numbers of
   population doublings, things get quirky. I have put the mathematical
-  correction in the function, which you can specify with \code{correctab =
-  TRUE}. I have noticed though, it tends to give straight lethal genes an
+  correction in the function, which you can turn off with \code{correctab =
+  FALSE}. I have noticed that correction gives straight lethal genes
   artificially high treatment resistance (positive e). But when I do not
-  correct, I see a downward skew here. In case of a resistance screen, it is
-  more useful to look at the uncorrected variant. If you are interested in
+  correct, I see a downward skew here. In case of a resistance screen, it may
+  be more useful to look at the uncorrected variant. If you are interested in
   picking up sensitizers, I would recommend correcting.
 }
 \examples{
