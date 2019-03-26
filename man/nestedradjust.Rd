@@ -4,43 +4,29 @@
 \alias{nestedradjust}
 \title{Calculate rate ratios of rate ratios restricted by confidence level}
 \usage{
-nestedradjust(mtreads1, wtreads1, mtreads0, wtreads0, srmt1, srwt1, srmt0,
-  srwt0, conf.level = 0.01, log = TRUE, belowxreads = FALSE)
+nestedradjust(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum",
+  normsubset, log = TRUE, belowxreads = FALSE)
 }
 \arguments{
-\item{mtreads1}{Integer. Sequencing reads of feature in test sample, t1}
+\item{mt1}{Integer vector. Raw sequencing reads in test sample, t1}
 
-\item{wtreads1}{Integer. Sequencing reads of feature in control sample, t1}
+\item{wt1}{Integer vector. Raw sequencing reads in control sample, t1}
 
-\item{mtreads0}{Integer. Sequencing reads of feature in test sample, t0}
+\item{mt0}{Integer vector. Raw sequencing reads in test sample, t0}
 
-\item{wtreads0}{Integer. Sequencing reads of feature in control sample, t0}
-
-\item{srmt1}{Integer. Sum of all sequencing reads in test sample, t1. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes.}
-
-\item{srwt1}{Integer. Sum of all sequencing reads in control sample, t1. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes. Make sure to treat test and control equally.}
-
-\item{srmt0}{Integer. Sum of all sequencing reads in test sample, t0. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes.}
-
-\item{srwt0}{Integer. Sum of all sequencing reads in control sample, t0. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes. Make sure to treat test and control equally.}
+\item{wt0}{Integer vector. Raw sequencing reads in control sample, t0}
 
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
 FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
 
+\item{normfun}{Character string. Specify with which function to standardize
+the data. Default = "sum"}
+
+\item{normsubset}{Integer vector. Specify the indices of features that are to
+be used in standardization}
+
 \item{log}{Logical. Specify whether the rate ratio should be
-log2-transformed. Default = TRUE}
+log2-transformed. If TRUE, uses log2. Default = TRUE}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}
@@ -59,15 +45,17 @@ The basic functionality is similar to \code{\link{radjust}}. The
   This is where the nested aspect of this function comes in. Both the upper
   and lower confidence limit of the rate ratio at baseline are tested as time
   base. From the resulting two rate ratios, the smallest fold change ratio is
-  returned.
+  returned. It therefore estimates a conservative rate ratio.
 }
 \examples{
-nestedradjust(30, 46, 100, 100, 21856736, 26730955, 20000000, 20000000)
-nestedradjust(30, 46, 10, 10, 21856736, 26730955, 20000000, 20000000)
+wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2)
+mt <- CRISPRsim(genes = 10, guides = 4, a = 3, e = TRUE, f = jitter(wt$f),
+                allseed = 1, repseed = 2)
+nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
 
 }
 \seealso{
-\code{\link{radjust}}
+\code{\link{radjust}}, \code{\link{CRISPRsim}}
 }
 \author{
 Jos B. Poell

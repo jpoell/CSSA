@@ -15,7 +15,7 @@ jar(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset)
 rate ratios. Default = 5}
 
 \item{log}{Logical or numeric. Specify whether to log-transform the rate
-ratio, and with what base. Default = TRUE}
+ratio, and with what base. If TRUE, uses log2. Default = TRUE}
 
 \item{normfun}{Character string. Specify with which function to standardize
 the data. Default = "sum"}

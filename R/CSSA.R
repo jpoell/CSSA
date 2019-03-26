@@ -134,7 +134,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
                       fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1,
                       perfectsampling = FALSE, perfectseq = FALSE, outputfile) {
-
+  
   if (!missing(allseed)) {set.seed(allseed)}
   if (missing(genes)) {
     if (!missing(guides) && is(guides, "character")) {
@@ -153,11 +153,11 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   if (cellreplace == FALSE) {
     message("keep in mind sampling with replacement can blow up your computer!")
   }
-
+  
   if (length(genes)==1 && (is(genes, "integer") || is(genes, "numeric"))) {
     genes <- paste0("gene", seq_len(genes))
   }
-
+  
   if (length(guides)==1 && (is(guides, "integer") || is(guides, "numeric"))) {
     n <- rep(guides, length(genes))
     guides <- as.vector(sapply(genes, function(x) {paste0(x, "_", seq_len(guides))}))
@@ -173,7 +173,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       genes <- rle(gsub("_.*", "", guides))$values
     }
   }
-
+  
   if (missing(g)) {
     message("guide efficiency is randomly sampled from the displayed distribution")
     if (!missing(gseed)) {set.seed(gseed)} else {set.seed(allseed)}
@@ -190,7 +190,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     g[g < 0] <- 0
     g[g > 1] <- 1
   }
-
+  
   if (missing(f)) {
     message("guide abundance (library representation) is randomly assigned")
     # The allseed is shifted to ascertain randomness between g and f
@@ -203,7 +203,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     if (!missing(fseed)) {set.seed(fseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
     f <- sample(f, length(guides), replace = TRUE)
   }
-
+  
   if (missing(d) || (length(d) == 1 && d == TRUE)) {
     message("effect of gene knockout is randomly sampled from the displayed distribution")
     if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
@@ -217,7 +217,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
     d <- sample(d, length(genes), replace = TRUE)
   }
-
+  
   if (!missing(e)) {
     if (length(e) == 1 && e == TRUE) {
       message("arm-specific effect modifier is randomly sampled from the displayed distribution")
@@ -239,14 +239,14 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       stop("This is not going to go well, not all e-values are numeric!")
     }
   }
-
+  
   unique_d <- d
   d <- rep(d, n)
-
+  
   if (any(is.na(d)) || any(is.null(d)) || any(is.character(d))) {
     stop("This is not going to go well, not all d-values are numeric!")
   }
-
+  
   if (offtargets != FALSE) {
     if (!missing(oseed)) {set.seed(oseed)} else {set.seed(allseed)}
     if (offtargets == TRUE) {offtargets <- 0.001}
@@ -257,7 +257,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       e[tochange] <- unique_e[changeto]
     }
   }
-
+  
   if (missing(seededcells)) {
     message("assuming mean representation of 200 cells per guide")
     seededcells <- rep(200*length(guides), length(a)+1)
@@ -271,16 +271,16 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else if (length(harvestedcells) <= length(a)) {
     harvestedcells <- append(harvestedcells, rep(tail(harvestedcells, 1), length(a)+1-length(harvestedcells)))
   }
-
+  
   if (missing(seqdepth)) {
     message("assuming mean depth of 500 reads per guide")
     seqdepth <- rep(500*length(guides), length(a)+1)
   } else if (length(seqdepth) <= length(a)) {
     seqdepth <- append(seqdepth, rep(tail(seqdepth, 1), length(a)+1-length(seqdepth)))
   }
-
+  
   if (!missing(t0seed)) {set.seed(t0seed)} else {set.seed(allseed)}
-
+  
   print("started with t0")
   readmat <- matrix(ncol = length(seqdepth), nrow = length(guides))
   # scells is a vector twice the length of the number of guides. The first half
@@ -304,17 +304,17 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                                         replace = TRUE, prob = hcells)))-1
     }
   }
-
+  
   colnames(readmat) <- c("t0", paste0("t", cumsum(a)))
-
+  
   if (!missing(repseed)) {set.seed(repseed)} else {set.seed(allseed)}
-
+  
   kocells <- scells[seq_along(guides)]
   nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
   st <- 0
   for (t in seq_along(a)) {
     print(paste0("started with t", sum(a[seq(1,t)])))
-
+    
     if (missing(e) || length(e) == 1) {
       cellpool <- mapply(function(stud, dud, d) {
         kocells <- round(stud*2^((1+d)*a[t]))
@@ -329,7 +329,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
         return(list(kocells = kocells, nkocells = nkocells))
       }, kocells, nkocells, d, e*st)
     }
-
+    
     # Note: the vector hpool is made immediately. Not so the vectors kocells and
     # nkocells. These are reserved for newly sampled batches, to be used in the
     # next iteration of the loop. If the kocells or nkocells are needed, they
@@ -340,7 +340,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       nkocells <- round(unlist(cellpool[2,])*seededcells[t+1]/sum(hpool))
       readmat[, t+1] <- round(hpool*seqdepth[t+1]/sum(hpool))
     } else {
-
+      
       if (cellreplace == FALSE) {
         neededcells <- seededcells[t+1] + harvestedcells[t+1]
         if (neededcells > sum(hpool)) {
@@ -367,7 +367,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
           readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
                                                                 seqdepth[t+1], replace = TRUE, prob = hcells)))-1
         }
-
+        
       } else {
         scells <- tabulate(c(seq_along(c(guides,guides)),
                              sample(seq_along(c(guides,guides)),
@@ -389,29 +389,29 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
           readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
                                                                 seqdepth[t+1], replace = TRUE, prob = hcells)))-1
         }
-
+        
       }
-
+      
     }
-
+    
   }
-
+  
   print("wrapping up")
-
+  
   df <- as.data.frame(readmat)
-
+  
   if (missing(e)) {
     df <- data.frame(guides, gene = rep(genes, n), d, f, g, df, stringsAsFactors = FALSE)
   } else {
     df <- data.frame(guides, gene = rep(genes, n), d, e, f, g, df, stringsAsFactors = FALSE)
   }
-
+  
   if (!missing(outputfile)) {
     write.table(df, outputfile, row.names = FALSE, quote = FALSE, sep = "\t")
   }
-
+  
   return(df)
-
+  
 }
 
 
@@ -422,25 +422,21 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' the binomial distribution to calculate confidence intervals of rate ratios,
 #' and returns the log2-transformed confidence limit that is closest to 0.
 #'
-#' @param reads1 Integer. Sequencing reads of feature in test sample
-#' @param reads0 Integer. Sequencing reads of feature in control sample
-#' @param sumreads1 Integer. Sum of all sequencing reads in test sample. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes.
-#' @param sumreads0 Integer. Sum of all sequencing reads in control sample. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes. Make sure to treat test and control equally.
+#' @param t1 Integer vector. Raw sequencing reads in test sample
+#' @param t0 Integer vector. Raw sequencing reads in control sample
 #' @param conf.level Numeric. Sets the confidence level of the rate ratio. If
 #'   FALSE, an unadjusted rate ratio will be returned. Default = 0.01
-#' @param log Logical. Specify whether the rate ratio should be
-#'   log2-transformed. Default = TRUE
+#' @param normfun Character string. Specify with which function to standardize
+#'   the data. Default = "sum"
+#' @param normsubset Integer vector. Specify the indices of features that are to
+#'   be used in standardization
+#' @param log Logical or numeric. Specify whether to log-transform the rate
+#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
 #' @param belowxreads Logical or numeric. Set threshold above which the
 #'   unadjusted rate ratio is returned. Default = FALSE
 #'
 #' @details The core of this function utilizes the \code{\link{poisson.test}}
-#'   function from the stats package, with \code{x = c(reads1, reads0)} and
+#'   function from the stats package, with \code{x = c(t1, t0)} and
 #'   \code{T = c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper
 #'   and lower confidence limits are log2-transformed and the value closest to 0
 #'   is returned. If the log2-transformed upper and lower limit have opposite
@@ -457,45 +453,65 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' @author Jos B. Poell
 #'
 #' @examples
-#' radjust(30, 46, 21856736, 26730955)
-#' radjust(30, 46, 21856736, 26730955, conf.level = 0.8)
-#' radjust(30, 46, 21856736, 26730955, belowxreads = 30)
-#' radjust(30, 46, 21856736, 26730955, log = FALSE)
-#' t1 <- c(658,2464,45,355677,568)
-#' t0 <- c(234,6334,74,343346,533)
-#' mapply(radjust, t1, t0, sum(t1), sum(t0))
+#' ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1)
+#' tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1)
+#' cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
+#' r0 <- radjust(ut$t3, ut$t0, belowxreads = 300, normsubset = cgi)
+#' r1 <- radjust(tr$t3, ut$t3, belowxreads = 300, normsubset = cgi)
+#' hcr0 <- radjust(ut$t3, ut$t0, conf.level = 0.8, normsubset = cgi)
+#' hcr1 <- radjust(tr$t3, ut$t3, conf.level = 0.8, normsubset = cgi)
+#' plot(r0, hcr0)
+#' abline(0, 1)
+#' plot(r1, hcr1)
+#' abline(0, 1)
 #'
 #' @export
 
-radjust <- function(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
+radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
                     log = TRUE, belowxreads = FALSE) {
-  # checking whether belowxreads condition is met
-  if (belowxreads != FALSE && min(reads1, reads0) >= belowxreads) {
-    if (log == FALSE) {
-      # returning unadjusted rate ratio
-      return((reads1/sumreads1)/(reads0/sumreads0))
-    } else {
-      # returning unadjusted log2-transformed rate ratio
-      return(log((reads1/sumreads1)/(reads0/sumreads0), 2))
-    }
+  fun <- get(normfun)
+  if (!missing(normsubset)) {
+    sr0 <- fun(t0[normsubset])
+    sr1 <- fun(t1[normsubset])
   } else {
-    if (conf.level != FALSE) {
-      # log2-transformed upper and lower limit of given confidence interval
-      log2ci <- log(poisson.test(x = c(reads1, reads0),
-                                 T = c(sumreads1, sumreads0),
-                                 conf.level = conf.level)$conf.int, 2)
-      # when confidence interval contains 0, log2 rate ratio becomes 0
-      if(prod(log2ci) > 0) {log2r  <- log2ci[which.min(abs(log2ci))]} else {log2r <- 0}
-    } else {
-      # basically the same as belowxreads
-      log2r <- log(poisson.test(x = c(reads1, reads0),
-                                T = c(sumreads1, sumreads0))$estimate, 2)
-    }
-    if(log == FALSE) {
-      r <- 2^log2r
-      return(r)
-    } else {return(log2r)}
+    sr0 <- fun(t0)
+    sr1 <- fun(t1)
   }
+  
+  r <- mapply(function(t1, t0) {
+    if (belowxreads != FALSE && min(t1, t0) >= belowxreads) {
+      if (log == FALSE) {
+        # returning unadjusted rate ratio
+        return((t1*sr0)/(t0*sr1))
+      } else if (log != TRUE) {
+        return(log((t1*sr0)/(t0*sr1), log))
+      } else {
+        # returning unadjusted log2-transformed rate ratio
+        return(log((t1*sr0)/(t0*sr1), 2))
+      }
+    } else {
+      if (conf.level != FALSE) {
+        # log2-transformed upper and lower limit of given confidence interval
+        log2ci <- log(poisson.test(x = c(t1, t0),
+                                   T = c(sr1, sr0),
+                                   conf.level = conf.level)$conf.int, 2)
+        # when confidence interval contains 0, log2 rate ratio becomes 0
+        if(prod(log2ci) > 0) {log2r  <- log2ci[which.min(abs(log2ci))]} else {log2r <- 0}
+      } else {
+        # basically the same as belowxreads
+        log2r <- log(poisson.test(x = c(t1, t0),
+                                  T = c(sr1, sr0))$estimate, 2)
+      }
+      if(log == FALSE) {
+        r <- 2^log2r
+        return(r)
+      } else if (log != TRUE) {
+        r <- 2^log2r
+        return(log(r, log))
+      } else {return(log2r)}
+    }
+  }, t1, t0)
+  return(r)
 }
 
 #' Calculate rate ratios of rate ratios restricted by confidence level
@@ -503,30 +519,18 @@ radjust <- function(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
 #' nestedradjust is an extension of radjust. It is specifically applicable for
 #' comparison of two samples with an independent time base.
 #'
-#' @param mtreads1 Integer. Sequencing reads of feature in test sample, t1
-#' @param wtreads1 Integer. Sequencing reads of feature in control sample, t1
-#' @param mtreads0 Integer. Sequencing reads of feature in test sample, t0
-#' @param wtreads0 Integer. Sequencing reads of feature in control sample, t0
-#' @param srmt1 Integer. Sum of all sequencing reads in test sample, t1. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes.
-#' @param srwt1 Integer. Sum of all sequencing reads in control sample, t1. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes. Make sure to treat test and control equally.
-#' @param srmt0 Integer. Sum of all sequencing reads in test sample, t0. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes.
-#' @param srwt0 Integer. Sum of all sequencing reads in control sample, t0. Note
-#'   that this number is used for the "time base" in the poisson.test function
-#'   call. It can therefore also be the median reads, or a sum of a subset of
-#'   control genes. Make sure to treat test and control equally.
+#' @param mt1 Integer vector. Raw sequencing reads in test sample, t1
+#' @param wt1 Integer vector. Raw sequencing reads in control sample, t1
+#' @param mt0 Integer vector. Raw sequencing reads in test sample, t0
+#' @param wt0 Integer vector. Raw sequencing reads in control sample, t0
 #' @param conf.level Numeric. Sets the confidence level of the rate ratio. If
 #'   FALSE, an unadjusted rate ratio will be returned. Default = 0.01
+#' @param normfun Character string. Specify with which function to standardize
+#'   the data. Default = "sum"
+#' @param normsubset Integer vector. Specify the indices of features that are to
+#'   be used in standardization
 #' @param log Logical. Specify whether the rate ratio should be
-#'   log2-transformed. Default = TRUE
+#'   log2-transformed. If TRUE, uses log2. Default = TRUE
 #' @param belowxreads Logical or numeric. Set threshold above which the
 #'   unadjusted rate ratio is returned. Default = FALSE
 #'
@@ -536,63 +540,85 @@ radjust <- function(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
 #'   This is where the nested aspect of this function comes in. Both the upper
 #'   and lower confidence limit of the rate ratio at baseline are tested as time
 #'   base. From the resulting two rate ratios, the smallest fold change ratio is
-#'   returned.
+#'   returned. It therefore estimates a conservative rate ratio.
 #'
 #' @return Returns the (log2-transformed) adjusted rate ratio.
 #'
-#' @seealso \code{\link{radjust}}
+#' @seealso \code{\link{radjust}}, \code{\link{CRISPRsim}}
 #'
 #' @author Jos B. Poell
 #'
 #' @examples
-#' nestedradjust(30, 46, 100, 100, 21856736, 26730955, 20000000, 20000000)
-#' nestedradjust(30, 46, 10, 10, 21856736, 26730955, 20000000, 20000000)
+#' wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2)
+#' mt <- CRISPRsim(genes = 10, guides = 4, a = 3, e = TRUE, f = jitter(wt$f),
+#'                 allseed = 1, repseed = 2)
+#' nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
 #'
 #' @export
 
-nestedradjust <- function(mtreads1, wtreads1, mtreads0, wtreads0, srmt1, srwt1,
-                          srmt0, srwt0, conf.level = 0.01, log = TRUE,
-                          belowxreads = FALSE) {
-  # checking whether belowxreads condition is met
-  if (belowxreads != FALSE && min(mtreads1, wtreads1, mtreads0, wtreads0) >= belowxreads | conf.level == FALSE) {
-    # calculate the sum reads ratio
-    srr <- (srmt0/srmt1)*(srwt1/srwt0)
-    if (log == FALSE) {
-      # return unadjusted rate ratio
-      return(srr*(mtreads1*wtreads0)/(mtreads0*wtreads1))
-    } else {
-      # return unadjusted log2-transformed rate ratio
-      return(log(srr*(mtreads1*wtreads0)/(mtreads0*wtreads1), 2))
-    }
+nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum", 
+                          normsubset, log = TRUE, belowxreads = FALSE) {
+  fun <- get(normfun)
+  if (!missing(normsubset)) {
+    srmt1 <- fun(mt1[normsubset])
+    srwt1 <- fun(wt1[normsubset])
+    srmt0 <- fun(mt0[normsubset])
+    srwt0 <- fun(wt0[normsubset])
   } else {
-    srr1 <- srmt1/srwt1
-    # calculate the confidence interval of the rate ratio at t0
-    ci0 <- poisson.test(x = c(mtreads0, wtreads0),
-                        T = c(srmt0, srwt0),
-                        conf.level = conf.level)$conf.int
-    # rate ratio should not contain 0 or divided by zero
-    if (ci0[1] == 0) {ci0[1] <- min(0.01, ci0[2]/100)}
-    if (ci0[2] == Inf) {ci0[2] <- max(100, ci0[1]*100)}
-    # calculate the confidence interval at t1 with the lower and higher
-    # estimates of the rate ratio at t0
-    log2ci1 <- log2(poisson.test(x = c(mtreads1, wtreads1),
-                                 T = c(ci0[1]*srr1, 1),
-                                 conf.level = conf.level)$conf.int)
-    if(prod(log2ci1) > 0) {log2r1  <- log2ci1[which.min(abs(log2ci1))]} else {log2r1 <- 0}
-
-    log2ci2 <- log2(poisson.test(x = c(mtreads1, wtreads1),
-                                 T = c(ci0[2]*srr1, 1),
-                                 conf.level = conf.level)$conf.int)
-    if(prod(log2ci2) > 0) {log2r2  <- log2ci2[which.min(abs(log2ci2))]} else {log2r2 <- 0}
-
-    # return the log2-transformed rate ratio that is closest to 0
-    log2r <- c(log2r1, log2r2)[which.min(c(abs(log2r1), abs(log2r2)))]
-
-    if(log == FALSE) {
-      r <- 2^log2r
-      return(r)
-    } else {return(log2r)}
+    srmt1 <- fun(mt1)
+    srwt1 <- fun(wt1)
+    srmt0 <- fun(mt0)
+    srwt0 <- fun(wt0)
   }
+  
+  r <- mapply(function(mt1, wt1, mt0, wt0) {
+    # checking whether belowxreads condition is met
+    if (belowxreads != FALSE && min(mt1, wt1, mt0, wt0) >= belowxreads | conf.level == FALSE) {
+      # calculate the sum reads ratio
+      srr <- (srmt0/srmt1)*(srwt1/srwt0)
+      if (log == FALSE) {
+        # return unadjusted rate ratio
+        return(srr*(mt1*wt0)/(mt0*wt1))
+      } else if (log != TRUE) {
+        return(log(srr*(mt1*wt0)/(mt0*wt1), log))
+      } else {
+        # return unadjusted log2-transformed rate ratio
+        return(log(srr*(mt1*wt0)/(mt0*wt1), 2))
+      }
+    } else {
+      srr1 <- srmt1/srwt1
+      # calculate the confidence interval of the rate ratio at t0
+      ci0 <- poisson.test(x = c(mt0, wt0),
+                          T = c(srmt0, srwt0),
+                          conf.level = conf.level)$conf.int
+      # rate ratio should not contain 0 or divided by zero
+      if (ci0[1] == 0) {ci0[1] <- min(0.01, ci0[2]/100)}
+      if (ci0[2] == Inf) {ci0[2] <- max(100, ci0[1]*100)}
+      # calculate the confidence interval at t1 with the lower and higher
+      # estimates of the rate ratio at t0
+      log2ci1 <- log2(poisson.test(x = c(mt1, wt1),
+                                   T = c(ci0[1]*srr1, 1),
+                                   conf.level = conf.level)$conf.int)
+      if(prod(log2ci1) > 0) {log2r1  <- log2ci1[which.min(abs(log2ci1))]} else {log2r1 <- 0}
+      
+      log2ci2 <- log2(poisson.test(x = c(mt1, wt1),
+                                   T = c(ci0[2]*srr1, 1),
+                                   conf.level = conf.level)$conf.int)
+      if(prod(log2ci2) > 0) {log2r2  <- log2ci2[which.min(abs(log2ci2))]} else {log2r2 <- 0}
+      
+      # return the log2-transformed rate ratio that is closest to 0
+      log2r <- c(log2r1, log2r2)[which.min(c(abs(log2r1), abs(log2r2)))]
+      
+      if(log == FALSE) {
+        r <- 2^log2r
+        return(r)
+      } else if (log != TRUE) {
+        r <- 2^log2r
+        return(log(r, log))
+      } else {return(log2r)}
+    }
+  }, mt1, wt1, mt0, wt0)
+  return(r)
 }
 
 
@@ -607,7 +633,7 @@ nestedradjust <- function(mtreads1, wtreads1, mtreads0, wtreads0, srmt1, srwt1,
 #' @param n Numeric. Specify how much is added to each value before calculating
 #'   rate ratios. Default = 5
 #' @param log Logical or numeric. Specify whether to log-transform the rate
-#'   ratio, and with what base. Default = TRUE
+#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
@@ -655,7 +681,7 @@ jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
 #' @param n Numeric. Specify how much is added to each value before calculating
 #'   rate ratios of rate ratios. Default = 5
 #' @param log Logical or numeric. Specify whether to log-transform the rate
-#'   ratio, and with what base. Default = TRUE
+#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
@@ -732,7 +758,7 @@ sumZ <- function(guides, Z) {
   genes <- rle(gsub("_.*", "", guides))$values
   n <- rle(gsub("_.*", "", guides))$lengths
   return(mapply(function(n,gi) {sum(Z[(gi-n+1):gi])/sqrt(n)}, 
-                           n, cumsum(n)))
+                n, cumsum(n)))
 }
 
 # The function below has become quite the behemoth. It started out from the
@@ -837,9 +863,9 @@ sumZ <- function(guides, Z) {
 
 getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
                    skipcutoff = FALSE, correctab = TRUE) {
-
+  
   message("In this version the function has been rewritten to calculate d as 0-centered!!")
-
+  
   if (missing(a)) {
     stop("enter the presumed number of population doublings")
   }
@@ -847,7 +873,7 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
   genes <- rle(gsub("_.*", "", guides))$values
   n <- rle(gsub("_.*", "", guides))$lengths
   gi <- cumsum(n)
-
+  
   if (missing(r1)) {
     message("no input to calculate effect modifier e")
     dgi <- mapply(function(n, gi) {
@@ -882,24 +908,24 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
       gi2 <- cumsum(n2)
       # best guides are excluded to find the second-best guide
       r02 <- r0[-(gi-n+i)]
-
+      
       d2j <- mapply(function(n2, gi2) {
         # if there was only 1 guide to begin with, second best is NaN
         if (n2 == 0) {return(list(d2 = NaN, j = NaN))}
         else {
-        if (median(r02[(gi2-n2+1):gi2]) < 0) {r <- min(r02[(gi2-n2+1):gi2])} else {r <- max(r02[(gi2-n2+1):gi2])}
-        j <- tail(which(r02[(gi2-n2+1):gi2]==r),1)
-        # note that guide efficacies are not calculated again
-        return(list(d2=r/a, j = j))}
+          if (median(r02[(gi2-n2+1):gi2]) < 0) {r <- min(r02[(gi2-n2+1):gi2])} else {r <- max(r02[(gi2-n2+1):gi2])}
+          j <- tail(which(r02[(gi2-n2+1):gi2]==r),1)
+          # note that guide efficacies are not calculated again
+          return(list(d2=r/a, j = j))}
       }, n2, gi2)
-
+      
       # code below is to find the correct within-gene index of the second-best guide
       j <- unlist(d2j[2,])
       k <- i[!is.na(j)]
       l <- j[!is.na(j)]
       l[l >= k] <- l[l >= k]+1
       j[!is.na(j)] <- l
-
+      
     }
   } else {
     if (missing(b)) {
@@ -945,26 +971,26 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
         # (e.g. straight lethality increases).
         if (a != b && correctab == TRUE) {e <- (r1[gi-n+i]-r0[gi-n+i]*(b/a-1))/b}
         else {e <- r1[gi-n+i]/b}
-
+        
         g <- sapply(seq_len(n), function(i) {
-
-            if (w == 1) {
-              if (d == 1 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
-              g[g < 0] <- 0
-              g[g > 1] <- 1
-
-            } else if (w == 2) {
-              if (e == 1 && r1[gi-n+i] == 0) {g <- 1} else {g <- (2^(r1[gi-n+i])-1) / (2^(b*e)-1)}
-              g[g < 0] <- 0
-              g[g > 1] <- 1
-
-            } else {
-              if (de == 1 && rt[gi-n+i] == 0) {g <- 1} else {g <- (2^(rt[gi-n+i])-1) / (2^(b*de)-1)}
-              g[g < 0] <- 0
-              g[g > 1] <- 1
-
-            }
-
+          
+          if (w == 1) {
+            if (d == 1 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
+            g[g < 0] <- 0
+            g[g > 1] <- 1
+            
+          } else if (w == 2) {
+            if (e == 1 && r1[gi-n+i] == 0) {g <- 1} else {g <- (2^(r1[gi-n+i])-1) / (2^(b*e)-1)}
+            g[g < 0] <- 0
+            g[g > 1] <- 1
+            
+          } else {
+            if (de == 1 && rt[gi-n+i] == 0) {g <- 1} else {g <- (2^(rt[gi-n+i])-1) / (2^(b*de)-1)}
+            g[g < 0] <- 0
+            g[g > 1] <- 1
+            
+          }
+          
           return(g)})
       }
       return(list(d=d,e=e,g=g,i=i))
@@ -977,9 +1003,9 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
       r12 <- r1[-(gi-n+i)]
       if (length(rt) > 1) {rt2 <- rt[-(gi-n+i)]}
       d2e2j <- mapply(function(n2, gi2) {
-
+        
         if (n2 == 0) {return(list(d2 = NaN, e2 = NaN, j = NaN))}
-
+        
         else {
           if (median(r02[(gi2-n2+1):gi2]) < 0) {r2 <- min(r02[(gi2-n2+1):gi2])} else {r2 <- max(r02[(gi2-n2+1):gi2])}
           if (median(r12[(gi2-n2+1):gi2]) < 0) {r112 <- min(r12[(gi2-n2+1):gi2])} else {r112 <- max(r12[(gi2-n2+1):gi2])}
@@ -996,23 +1022,23 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
             if (w == 1) {j <- tail(which(r02[(gi2-n2+1):gi2]==r2),1)}
             else {j <- tail(which(r12[(gi2-n2+1):gi2]==r112),1)}
           }
-
+          
           if (a != b && correctab == TRUE) {
             e2 <- (r12[gi2-n2+j]-r02[gi2-n2+j]*(b/a-1))/b
           } else {e2 <- r12[gi2-n2+j]/b}
           return(list(d2=r02[gi2-n2+j]/a, e2 = e2, j = j))
         }
       }, n2, gi2)
-
+      
       j <- unlist(d2e2j[3,])
       k <- i[!is.na(j)]
       l <- j[!is.na(j)]
       l[l >= k] <- l[l >= k]+1
       j[!is.na(j)] <- l
-
+      
     }
   }
-
+  
   if (missing(r1)) {
     d <- unlist(dgi[1,])
     g <- unlist(dgi[2,])
@@ -1036,5 +1062,5 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
       return(list(d=d,e=e,g=g,i=i))
     }
   }
-
+  
 }

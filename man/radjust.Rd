@@ -4,29 +4,25 @@
 \alias{radjust}
 \title{Calculate rate ratios restricted by confidence level}
 \usage{
-radjust(reads1, reads0, sumreads1, sumreads0, conf.level = 0.01,
+radjust(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
   log = TRUE, belowxreads = FALSE)
 }
 \arguments{
-\item{reads1}{Integer. Sequencing reads of feature in test sample}
+\item{t1}{Integer vector. Raw sequencing reads in test sample}
 
-\item{reads0}{Integer. Sequencing reads of feature in control sample}
-
-\item{sumreads1}{Integer. Sum of all sequencing reads in test sample. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes.}
-
-\item{sumreads0}{Integer. Sum of all sequencing reads in control sample. Note
-that this number is used for the "time base" in the poisson.test function
-call. It can therefore also be the median reads, or a sum of a subset of
-control genes. Make sure to treat test and control equally.}
+\item{t0}{Integer vector. Raw sequencing reads in control sample}
 
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
 FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
 
-\item{log}{Logical. Specify whether the rate ratio should be
-log2-transformed. Default = TRUE}
+\item{normfun}{Character string. Specify with which function to standardize
+the data. Default = "sum"}
+
+\item{normsubset}{Integer vector. Specify the indices of features that are to
+be used in standardization}
+
+\item{log}{Logical or numeric. Specify whether to log-transform the rate
+ratio, and with what base. If TRUE, uses log2. Default = TRUE}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}
@@ -41,7 +37,7 @@ and returns the log2-transformed confidence limit that is closest to 0.
 }
 \details{
 The core of this function utilizes the \code{\link{poisson.test}}
-  function from the stats package, with \code{x = c(reads1, reads0)} and
+  function from the stats package, with \code{x = c(t1, t0)} and
   \code{T = c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper
   and lower confidence limits are log2-transformed and the value closest to 0
   is returned. If the log2-transformed upper and lower limit have opposite
@@ -53,13 +49,17 @@ If conf.level is set to 0, it will be interpreted as FALSE. This is
   instead of giving an error.
 }
 \examples{
-radjust(30, 46, 21856736, 26730955)
-radjust(30, 46, 21856736, 26730955, conf.level = 0.8)
-radjust(30, 46, 21856736, 26730955, belowxreads = 30)
-radjust(30, 46, 21856736, 26730955, log = FALSE)
-t1 <- c(658,2464,45,355677,568)
-t0 <- c(234,6334,74,343346,533)
-mapply(radjust, t1, t0, sum(t1), sum(t0))
+ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1)
+tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1)
+cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
+r0 <- radjust(ut$t3, ut$t0, belowxreads = 300, normsubset = cgi)
+r1 <- radjust(tr$t3, ut$t3, belowxreads = 300, normsubset = cgi)
+hcr0 <- radjust(ut$t3, ut$t0, conf.level = 0.8, normsubset = cgi)
+hcr1 <- radjust(tr$t3, ut$t3, conf.level = 0.8, normsubset = cgi)
+plot(r0, hcr0)
+abline(0, 1)
+plot(r1, hcr1)
+abline(0, 1)
 
 }
 \seealso{
