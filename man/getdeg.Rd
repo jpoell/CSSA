@@ -41,11 +41,13 @@ an experiment with unequal a and b, try both with and without correction
 and read the notes below. Default = TRUE}
 }
 \value{
-Returns a list with the following: \itemize{ \item{d}{ - gene
+Returns a list with the following (depending on input arguments): \itemize{ \item{d}{ - gene
   knockout effects on straight lethality} \item{d2}{ - gene knockout effects
   on straight lethality based on the second-best guide} \item{e}{ - gene
-  knocout effects on sensitization} \item{e2}{ - gene knocout effects on
-  sensitization based on the second-best guide} \item{g}{ - estimated guide
+  knockout effects on sensitization} \item{e2}{ - gene knockout effects on
+  sensitization based on the second-best guide} \item{de}{ - gene
+  knockout effects on straight lethality in the test arm} \item{de2}{ - gene knockout effects on
+  straight lethality in the test arm based on the second-best guide} \item{g}{ - estimated guide
   efficacy} \item{i}{ - within-gene index of the best guide} \item{j}{ -
   within-gene index of the second-best guide} }
 }

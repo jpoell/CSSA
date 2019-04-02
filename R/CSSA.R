@@ -134,7 +134,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
                       fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1,
                       perfectsampling = FALSE, perfectseq = FALSE, outputfile) {
-  
+
   if (!missing(allseed)) {set.seed(allseed)}
   if (missing(genes)) {
     if (!missing(guides) && is(guides, "character")) {
@@ -153,11 +153,11 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   if (cellreplace == FALSE) {
     message("keep in mind sampling with replacement can blow up your computer!")
   }
-  
+
   if (length(genes)==1 && (is(genes, "integer") || is(genes, "numeric"))) {
     genes <- paste0("gene", seq_len(genes))
   }
-  
+
   if (length(guides)==1 && (is(guides, "integer") || is(guides, "numeric"))) {
     n <- rep(guides, length(genes))
     guides <- as.vector(sapply(genes, function(x) {paste0(x, "_", seq_len(guides))}))
@@ -173,7 +173,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       genes <- rle(gsub("_.*", "", guides))$values
     }
   }
-  
+
   if (missing(g)) {
     message("guide efficiency is randomly sampled from the displayed distribution")
     if (!missing(gseed)) {set.seed(gseed)} else {set.seed(allseed)}
@@ -190,7 +190,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     g[g < 0] <- 0
     g[g > 1] <- 1
   }
-  
+
   if (missing(f)) {
     message("guide abundance (library representation) is randomly assigned")
     # The allseed is shifted to ascertain randomness between g and f
@@ -203,7 +203,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     if (!missing(fseed)) {set.seed(fseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
     f <- sample(f, length(guides), replace = TRUE)
   }
-  
+
   if (missing(d) || (length(d) == 1 && d == TRUE)) {
     message("effect of gene knockout is randomly sampled from the displayed distribution")
     if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
@@ -217,7 +217,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
     d <- sample(d, length(genes), replace = TRUE)
   }
-  
+
   if (!missing(e)) {
     if (length(e) == 1 && e == TRUE) {
       message("arm-specific effect modifier is randomly sampled from the displayed distribution")
@@ -239,14 +239,14 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       stop("This is not going to go well, not all e-values are numeric!")
     }
   }
-  
+
   unique_d <- d
   d <- rep(d, n)
-  
+
   if (any(is.na(d)) || any(is.null(d)) || any(is.character(d))) {
     stop("This is not going to go well, not all d-values are numeric!")
   }
-  
+
   if (offtargets != FALSE) {
     if (!missing(oseed)) {set.seed(oseed)} else {set.seed(allseed)}
     if (offtargets == TRUE) {offtargets <- 0.001}
@@ -257,7 +257,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       e[tochange] <- unique_e[changeto]
     }
   }
-  
+
   if (missing(seededcells)) {
     message("assuming mean representation of 200 cells per guide")
     seededcells <- rep(200*length(guides), length(a)+1)
@@ -271,16 +271,16 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else if (length(harvestedcells) <= length(a)) {
     harvestedcells <- append(harvestedcells, rep(tail(harvestedcells, 1), length(a)+1-length(harvestedcells)))
   }
-  
+
   if (missing(seqdepth)) {
     message("assuming mean depth of 500 reads per guide")
     seqdepth <- rep(500*length(guides), length(a)+1)
   } else if (length(seqdepth) <= length(a)) {
     seqdepth <- append(seqdepth, rep(tail(seqdepth, 1), length(a)+1-length(seqdepth)))
   }
-  
+
   if (!missing(t0seed)) {set.seed(t0seed)} else {set.seed(allseed)}
-  
+
   print("started with t0")
   readmat <- matrix(ncol = length(seqdepth), nrow = length(guides))
   # scells is a vector twice the length of the number of guides. The first half
@@ -304,17 +304,17 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                                         replace = TRUE, prob = hcells)))-1
     }
   }
-  
+
   colnames(readmat) <- c("t0", paste0("t", cumsum(a)))
-  
+
   if (!missing(repseed)) {set.seed(repseed)} else {set.seed(allseed)}
-  
+
   kocells <- scells[seq_along(guides)]
   nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
   st <- 0
   for (t in seq_along(a)) {
     print(paste0("started with t", sum(a[seq(1,t)])))
-    
+
     if (missing(e) || length(e) == 1) {
       cellpool <- mapply(function(stud, dud, d) {
         kocells <- round(stud*2^((1+d)*a[t]))
@@ -329,7 +329,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
         return(list(kocells = kocells, nkocells = nkocells))
       }, kocells, nkocells, d, e*st)
     }
-    
+
     # Note: the vector hpool is made immediately. Not so the vectors kocells and
     # nkocells. These are reserved for newly sampled batches, to be used in the
     # next iteration of the loop. If the kocells or nkocells are needed, they
@@ -340,7 +340,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       nkocells <- round(unlist(cellpool[2,])*seededcells[t+1]/sum(hpool))
       readmat[, t+1] <- round(hpool*seqdepth[t+1]/sum(hpool))
     } else {
-      
+
       if (cellreplace == FALSE) {
         neededcells <- seededcells[t+1] + harvestedcells[t+1]
         if (neededcells > sum(hpool)) {
@@ -367,7 +367,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
           readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
                                                                 seqdepth[t+1], replace = TRUE, prob = hcells)))-1
         }
-        
+
       } else {
         scells <- tabulate(c(seq_along(c(guides,guides)),
                              sample(seq_along(c(guides,guides)),
@@ -389,31 +389,30 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
           readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
                                                                 seqdepth[t+1], replace = TRUE, prob = hcells)))-1
         }
-        
+
       }
-      
+
     }
-    
+
   }
-  
+
   print("wrapping up")
-  
+
   df <- as.data.frame(readmat)
-  
+
   if (missing(e)) {
     df <- data.frame(guides, gene = rep(genes, n), d, f, g, df, stringsAsFactors = FALSE)
   } else {
     df <- data.frame(guides, gene = rep(genes, n), d, e, f, g, df, stringsAsFactors = FALSE)
   }
-  
+
   if (!missing(outputfile)) {
     write.table(df, outputfile, row.names = FALSE, quote = FALSE, sep = "\t")
   }
-  
-  return(df)
-  
-}
 
+  return(df)
+
+}
 
 
 #' Calculate rate ratios restricted by confidence level
@@ -482,12 +481,12 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
     if (belowxreads != FALSE && min(t1, t0) >= belowxreads) {
       if (log == FALSE) {
         # returning unadjusted rate ratio
-        return((t1*sr0)/(t0*sr1))
+        return((t1/sr1)/(t0/sr0))
       } else if (log != TRUE) {
-        return(log((t1*sr0)/(t0*sr1), log))
+        return(log((t1/sr1)/(t0/sr0), log))
       } else {
         # returning unadjusted log2-transformed rate ratio
-        return(log((t1*sr0)/(t0*sr1), 2))
+        return(log((t1/sr1)/(t0/sr0), 2))
       }
     } else {
       if (conf.level != FALSE) {
@@ -578,12 +577,12 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
       srr <- (srmt0/srmt1)*(srwt1/srwt0)
       if (log == FALSE) {
         # return unadjusted rate ratio
-        return(srr*(mt1*wt0)/(mt0*wt1))
+        return(srr*(mt1/wt1)/(mt0/wt0))
       } else if (log != TRUE) {
-        return(log(srr*(mt1*wt0)/(mt0*wt1), log))
+        return(log(srr*(mt1/wt1)/(mt0/wt0), log))
       } else {
         # return unadjusted log2-transformed rate ratio
-        return(log(srr*(mt1*wt0)/(mt0*wt1), 2))
+        return(log(srr*(mt1/wt1)/(mt0/wt0), 2))
       }
     } else {
       srr1 <- srmt1/srwt1
@@ -600,15 +599,15 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
                                    T = c(ci0[1]*srr1, 1),
                                    conf.level = conf.level)$conf.int)
       if(prod(log2ci1) > 0) {log2r1  <- log2ci1[which.min(abs(log2ci1))]} else {log2r1 <- 0}
-      
+  
       log2ci2 <- log2(poisson.test(x = c(mt1, wt1),
                                    T = c(ci0[2]*srr1, 1),
                                    conf.level = conf.level)$conf.int)
       if(prod(log2ci2) > 0) {log2r2  <- log2ci2[which.min(abs(log2ci2))]} else {log2r2 <- 0}
-      
+  
       # return the log2-transformed rate ratio that is closest to 0
       log2r <- c(log2r1, log2r2)[which.min(c(abs(log2r1), abs(log2r2)))]
-      
+  
       if(log == FALSE) {
         r <- 2^log2r
         return(r)
@@ -655,9 +654,9 @@ jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
   fun <- get(normfun)
   if (!missing(normsubset)) {
     # only use guides for normalization specified by indices in normsubset
-    r <- (t1*fun(t0[normsubset]))/(t0*fun(t1[normsubset]))
+    r <- (t1/fun(t1[normsubset]))/(t0/fun(t0[normsubset]))
   } else {
-    r <- (t1*fun(t0))/(t0*fun(t1))
+    r <- (t1/fun(t1))/(t0/fun(t0))
   }
   if (log == TRUE) {
     r <- log2(r)
@@ -706,9 +705,9 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
   fun <- get(normfun)
   if (!missing(normsubset)) {
     # only use guides for normalization specified by indices in normsubset
-    r <- (mt1*wt0*sum(mt0[normsubset])*sum(wt1[normsubset]))/(mt0*wt1*sum(mt1[normsubset])*sum(wt0[normsubset]))
+    r <- ((mt1/fun(mt1[normsubset]))*(wt0/fun(wt0[normsubset]))) / ((mt0/fun(mt0[normsubset]))*(wt1/fun(wt1[normsubset])))
   } else {
-    r <- (mt1*wt0*sum(mt0)*sum(wt1))/(mt0*wt1*sum(mt1)*sum(wt0))
+    r <- ((mt1/fun(mt1))*(wt0/fun(wt0))) / ((mt0/fun(mt0))*(wt1/fun(wt1)))
   }
   if (log == TRUE) {
     r <- log2(r)
@@ -758,7 +757,7 @@ sumZ <- function(guides, Z) {
   genes <- rle(gsub("_.*", "", guides))$values
   n <- rle(gsub("_.*", "", guides))$lengths
   return(mapply(function(n,gi) {sum(Z[(gi-n+1):gi])/sqrt(n)}, 
-                n, cumsum(n)))
+                           n, cumsum(n)))
 }
 
 # The function below has become quite the behemoth. It started out from the
@@ -826,11 +825,13 @@ sumZ <- function(guides, Z) {
 #'   This function does not do anything in terms of statistics. It expects
 #'   precautions are taken in the calculation of rate ratios!
 #'
-#' @return Returns a list with the following: \itemize{ \item{d}{ - gene
+#' @return Returns a list with the following (depending on input arguments): \itemize{ \item{d}{ - gene
 #'   knockout effects on straight lethality} \item{d2}{ - gene knockout effects
 #'   on straight lethality based on the second-best guide} \item{e}{ - gene
-#'   knocout effects on sensitization} \item{e2}{ - gene knocout effects on
-#'   sensitization based on the second-best guide} \item{g}{ - estimated guide
+#'   knockout effects on sensitization} \item{e2}{ - gene knockout effects on
+#'   sensitization based on the second-best guide} \item{de}{ - gene
+#'   knockout effects on straight lethality in the test arm} \item{de2}{ - gene knockout effects on
+#'   straight lethality in the test arm based on the second-best guide} \item{g}{ - estimated guide
 #'   efficacy} \item{i}{ - within-gene index of the best guide} \item{j}{ -
 #'   within-gene index of the second-best guide} }
 #'
@@ -864,7 +865,7 @@ sumZ <- function(guides, Z) {
 getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
                    skipcutoff = FALSE, correctab = TRUE) {
   
-  message("In this version the function has been rewritten to calculate d as 0-centered!!")
+#  message("In this version the function has been rewritten to calculate d as 0-centered!!")
   
   if (missing(a)) {
     stop("enter the presumed number of population doublings")
@@ -961,7 +962,11 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
           e <- r1[gi-n+i]/b
           if (length(rt) > 1) {de <- rt[gi-n+i]/b}
         }
-        return(list(d=r0[gi-n+i]/a, e = e, g = rep(1, n), i = i))
+        if (length(rt) > 1) {
+          return(list(d=r0[gi-n+i]/a, e = e, de = de, g = rep(1, n), i = i))
+        } else {
+          return(list(d=r0[gi-n+i]/a, e = e, g = rep(1, n), i = i))
+        }
       } else {
         d <- r0[gi-n+i]/a
         if (length(rt) > 1) {de <- rt[gi-n+i]/b}
@@ -993,10 +998,18 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
           
           return(g)})
       }
-      return(list(d=d,e=e,g=g,i=i))
+      if (length(rt) > 1) {
+        return(list(d=d,e=e,de=de,g=g,i=i))
+      } else {
+        return(list(d=d,e=e,g=g,i=i))
+      }
     }, n, gi)
     if (secondbest == TRUE) {
-      i <- unlist(degi[4,])
+      if (length(rt) > 1) {
+        i <- unlist(degi[5,])
+      } else {
+        i <- unlist(degi[4,])  
+      }
       n2 <- n-1
       gi2 <- cumsum(n2)
       r02 <- r0[-(gi-n+i)]
@@ -1004,7 +1017,13 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
       if (length(rt) > 1) {rt2 <- rt[-(gi-n+i)]}
       d2e2j <- mapply(function(n2, gi2) {
         
-        if (n2 == 0) {return(list(d2 = NaN, e2 = NaN, j = NaN))}
+        if (n2 == 0) {
+          if (length(rt) > 1) {
+            return(list(d2 = NaN, e2 = NaN, de2 = NaN, j = NaN))
+          } else {
+            return(list(d2 = NaN, e2 = NaN, j = NaN))
+          }
+        }
         
         else {
           if (median(r02[(gi2-n2+1):gi2]) < 0) {r2 <- min(r02[(gi2-n2+1):gi2])} else {r2 <- max(r02[(gi2-n2+1):gi2])}
@@ -1026,11 +1045,21 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
           if (a != b && correctab == TRUE) {
             e2 <- (r12[gi2-n2+j]-r02[gi2-n2+j]*(b/a-1))/b
           } else {e2 <- r12[gi2-n2+j]/b}
-          return(list(d2=r02[gi2-n2+j]/a, e2 = e2, j = j))
+          
+          if (length(rt) > 1) {
+            return(list(d2=r02[gi2-n2+j]/a, e2 = e2, de2 = rt2[gi2-n2+j]/b, j = j))
+          } else {
+            return(list(d2=r02[gi2-n2+j]/a, e2 = e2, j = j))
+          }
+          
         }
       }, n2, gi2)
       
-      j <- unlist(d2e2j[3,])
+      if (length(rt) > 1) {
+        j <- unlist(d2e2j[4,])
+      } else {
+        j <- unlist(d2e2j[3,])
+      }
       k <- i[!is.na(j)]
       l <- j[!is.na(j)]
       l[l >= k] <- l[l >= k]+1
@@ -1052,14 +1081,32 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
   } else {
     d <- unlist(degi[1,])
     e <- unlist(degi[2,])
-    g <- unlist(degi[3,])
-    i <- unlist(degi[4,])
+    if (length(rt) > 1) {
+      de <- unlist(degi[3,])
+      g <- unlist(degi[4,])
+      i <- unlist(degi[5,])  
+    } else {
+      g <- unlist(degi[3,])
+      i <- unlist(degi[4,])
+    }
+    
     if (secondbest == TRUE) {
       d2 <- unlist(d2e2j[1,])
       e2 <- unlist(d2e2j[2,])
-      return(list(d=d,d2=d2,e=e,e2=e2,g=g,i=i,j=j))
+      if (length(rt) > 1) {
+        de2 <- unlist(d2e2j[3,])
+        return(list(d=d,d2=d2,e=e,e2=e2,de=de,de2=de2,g=g,i=i,j=j))
+      } else {
+        return(list(d=d,d2=d2,e=e,e2=e2,g=g,i=i,j=j))
+      }
+      
     } else {
-      return(list(d=d,e=e,g=g,i=i))
+      if (length(rt) > 1) {
+        return(list(d=d,e=e,de=de,g=g,i=i))
+      } else {
+        return(list(d=d,e=e,g=g,i=i))
+      }
+      
     }
   }
   
