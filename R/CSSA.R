@@ -1,138 +1,132 @@
 #' Simulate a CRISPR-Cas9 pooled screen
-#'
+#' 
 #' CRISPRsim simulates a CRISPR-Cas9 pooled screen with user-defined parameters.
-#' These include drug treatment screens! Each "infected" cell expands over time
-#' based on effect of gene knockout. Other parameters include the abundance of
-#' each guide at the start of the experiment, the efficacy of the guide (chance
-#' that it results in a successful gene knockout), and the frequency and depth
-#' of sampling. In case of drug treatment, genes are assigned a
-#' treatment-specific growth modifier as well. The result is a data frame that
-#' contains the guide-relevant parameters and the sequencing coverage per guide
+#' These include drug treatment screens! Each "infected" cell expands over time 
+#' based on effect of gene knockout. Other parameters include the abundance of 
+#' each guide at the start of the experiment, the efficacy of the guide (chance 
+#' that it results in a successful gene knockout), and the frequency and depth 
+#' of sampling. In case of drug treatment, genes are assigned a 
+#' treatment-specific growth modifier as well. The result is a data frame that 
+#' contains the guide-relevant parameters and the sequencing coverage per guide 
 #' for the specified time intervals. Simulated screens will aid researchers with
-#' their experimental setup. Furthermore, this offers a unique platform for the
+#' their experimental setup. Furthermore, this offers a unique platform for the 
 #' evaluation of analysis methods for pooled gene knockout screens.
-#'
-#' @param genes Single integer or character vector. Specify how many or which
-#'   genes to include in the experiment respectively. Not required when a full
+#' 
+#' @param genes Single integer or character vector. Specify how many or which 
+#'   genes to include in the experiment respectively. Not required when a full 
 #'   list of guides is given.
-#' @param guides Single integer, integer vector or character vector. In case of
-#'   single integer, specify by how many guides each gene is represented. In
-#'   case of an integer vector, specify per gene by how many guides it is
+#' @param guides Single integer, integer vector or character vector. In case of 
+#'   single integer, specify by how many guides each gene is represented. In 
+#'   case of an integer vector, specify per gene by how many guides it is 
 #'   represented. In case of a character vector, guides are assumed to contain a
 #'   gene name, followed by an underscore, followed by an identifier within that
 #'   gene (e.g. a number or a nucleotide sequence)
-#' @param a Numeric. Specify the number of doublings between each "passaging".
-#'   For example, in case of an experiment that ends after 12 doublings and was
+#' @param a Numeric. Specify the number of doublings between each "passaging". 
+#'   For example, in case of an experiment that ends after 12 doublings and was 
 #'   passaged 3 times, specify a = c(4,4,4)
-#' @param g Integer vector. Specify guide efficacies per guide. If omitted,
+#' @param g Integer vector. Specify guide efficacies per guide. If omitted, 
 #'   guide efficacies will be sampled from a representative distribution
-#' @param f Integer vector. Specify guide abundance at time of infection per
-#'   guide. If omitted, guide abundance will be sampled from a representative
+#' @param f Integer vector. Specify guide abundance at time of infection per 
+#'   guide. If omitted, guide abundance will be sampled from a representative 
 #'   distribution
-#' @param d Integer vector. Specify gene-specific growth effect. If omitted,
-#'   effect of gene knockout on growth will be sampled from a representative
-#'   distribution. If the length of the vector does not match the number of
+#' @param d Integer vector. Specify gene-specific growth effect. If omitted, 
+#'   effect of gene knockout on growth will be sampled from a representative 
+#'   distribution. If the length of the vector does not match the number of 
 #'   genes, values will be randomly sampled from the specified distribution!
-#' @param e Integer vector. Specify treatment-specific growth effect per gene.
-#'   If omitted, effects will be sampled from a representative distribution. If
+#' @param e Integer vector. Specify treatment-specific growth effect per gene. 
+#'   If omitted, effects will be sampled from a representative distribution. If 
 #'   the length of the vector does not match the number of genes, values will be
 #'   randomly sampled from the specified distribution!
-#' @param seededcells Integer. Number of cells seeded at the start of each
-#'   experimental step. If the length of this argument is smaller than the
+#' @param seededcells Integer. Number of cells seeded at the start of each 
+#'   experimental step. If the length of this argument is smaller than the 
 #'   number of seedings, all unspecified steps will be assumed equal to the last
 #'   specified step! Defaults to 200 times the number of guides
-#' @param harvestedcells Integer. Number of cells from which to sample for
-#'   subsequent sequencing. This argument is especially useful to restrict the
+#' @param harvestedcells Integer. Number of cells from which to sample for 
+#'   subsequent sequencing. This argument is especially useful to restrict the 
 #'   expected DNA copies present in the PCR reaction. If you wish to do so, make
 #'   sure to set harvestall to FALSE. Defaults to be equal to seededcells
-#' @param harvestall Logical. If TRUE, all cells are collected and used for
-#'   sampling in subsequent sequencing step. Applies to all experimental time
+#' @param harvestall Logical. If TRUE, all cells are collected and used for 
+#'   sampling in subsequent sequencing step. Applies to all experimental time 
 #'   points beyond t0. Default = TRUE
-#' @param cellreplace Logical. If FALSE, cells are sampled from the total pool
-#'   of cells without replacement. Note that this is the most realistic
-#'   simulation of a screen, but then you should also keep realistic passaging
-#'   times! It is recommended to keep the total number of cells in the
+#' @param cellreplace Logical. If FALSE, cells are sampled from the total pool 
+#'   of cells without replacement. Note that this is the most realistic 
+#'   simulation of a screen, but then you should also keep realistic passaging 
+#'   times! It is recommended to keep the total number of cells in the 
 #'   experiment below 200 million. Default = TRUE
-#' @param treatmentdelay Integer. In case of a treatment experiment, specify
-#'   when treatment starts. It is currently only possible to start treatment on
+#' @param treatmentdelay Integer. In case of a treatment experiment, specify 
+#'   when treatment starts. It is currently only possible to start treatment on 
 #'   one of the experimental time points. Default = 0
-#' @param seqdepth Integer. Specify the amount of sequencing reads devoted to
-#'   each experimental arm. If omitted, depth will default to 500 times the
+#' @param seqdepth Integer. Specify the amount of sequencing reads devoted to 
+#'   each experimental arm. If omitted, depth will default to 500 times the 
 #'   number of guides
 #' @param offtargets Logical or numeric. Specify the fraction of off-targets. If
-#'   TRUE, 1 in 1000 guides (0.001) will target a different gene. Default =
+#'   TRUE, 1 in 1000 guides (0.001) will target a different gene. Default = 
 #'   FALSE
-#' @param allseed Integer. If specified, all unspecified seeds default to this.
+#' @param allseed Integer. If specified, all unspecified seeds default to this. 
 #'   Default = NULL
 #' @param gseed Integer. Specify seed for guide effiency assignment
-#' @param fseed Integer. Specify seed for infectious units assignment, which
+#' @param fseed Integer. Specify seed for infectious units assignment, which 
 #'   dictates a guide's abundance at the start of the experiment
 #' @param dseed Integer. Specify seed for straight lethality assignment of genes
 #' @param eseed Integer. Specify seed for sensitizer assignment of genes
 #' @param oseed Integer. Specify seed for off-target selection
 #' @param t0seed Integer. Specify seed for t0, which encompasses sampling of the
-#'   first seeding and the assignment of successful knockout cells versus no
+#'   first seeding and the assignment of successful knockout cells versus no 
 #'   knockout cells for each guide
 #' @param repseed Integer. Specify the seed after t0
-#' @param grm Numeric. Growth rate modifier. Specify adjusted growth rate under
+#' @param grm Numeric. Growth rate modifier. Specify adjusted growth rate under 
 #'   treatment conditions. Default = 1
-#' @param perfectsampling Logical. If TRUE, all sampling steps are replaced by
-#'   simple equations to calculate representation of guides. Useful as null
+#' @param em Numeric. Effect modifier. Specify how effective treatment is. This
+#'   can be used as a proxy for drug concentration. All individual e-values and
+#'   grm are modified by this multiplier. Default = 1
+#' @param perfectsampling Logical. If TRUE, all sampling steps are replaced by 
+#'   simple equations to calculate representation of guides. Useful as null 
 #'   control to isolate the effect of sampling. Default = FALSE
-#' @param perfectseq Logical. If TRUE, sequencing results are a perfect
-#'   representation (though still rounded) of guides in the harvested cells.
-#'   Applicable to speed up simulations, assuming sequencing is sufficiently
+#' @param perfectseq Logical. If TRUE, sequencing results are a perfect 
+#'   representation (though still rounded) of guides in the harvested cells. 
+#'   Applicable to speed up simulations, assuming sequencing is sufficiently 
 #'   deep. Default = FALSE
-#' @param outputfile Character string. When used, returned data frame will be
+#' @param outputfile Character string. When used, returned data frame will be 
 #'   saved as a tab-delimited text to the specified file path
-#'
-#' @details CRISPRsim performs a genome-wide (or subsetted) pooled CRISPR
-#'   knockout screen for you without having to go to the lab and spend
-#'   incredible amounts of time and money. This can be a tremendous help if you
-#'   want to design an experiment and answer questions such as: how many
-#'   replicates do I need, how much coverage, will I pick up genes with x
-#'   effect, et cetera. You can give it a spin, but I highly recommend checking
+#'   
+#' @details CRISPRsim performs a genome-wide (or subsetted) pooled CRISPR 
+#'   knockout screen for you without having to go to the lab and spend 
+#'   incredible amounts of time and money. This can be a tremendous help if you 
+#'   want to design an experiment and answer questions such as: how many 
+#'   replicates do I need, how much coverage, will I pick up genes with x 
+#'   effect, et cetera. You can give it a spin, but I highly recommend checking 
 #'   out the documentation for the available parameters! Especially seeds can be
-#'   relevant for a proper simulation. You can easily "practice" by simulating
+#'   relevant for a proper simulation. You can easily "practice" by simulating 
 #'   some small experiments. The basis of the simulation are as follows. Between
-#'   time points cells with a certain knockout grow according to formula
-#'   \code{cellsout = cellsin*2^((grm+d+e)*a))} Each guide has an efficacy,
-#'   which is the chance to create a successful knockout. The cellsin is
-#'   determined at t0 and depends on guide efficacy and guide abundance. If
-#'   there is no successful knockout, d and e are 0. Cells with and without
-#'   successful knockout are followed separately throughout the experiment, but
-#'   the pairs are pooled in terms of sequencing reads. grm is the growth rate
-#'   modifier and is generally 1, but it can be lowered to more properly
+#'   time points cells with a certain knockout grow according to formula 
+#'   \code{cellsout = cellsin*2^((grm+d+e)*a))} Each guide has an efficacy, 
+#'   which is the chance to create a successful knockout. The cellsin is 
+#'   determined at t0 and depends on guide efficacy and guide abundance. If 
+#'   there is no successful knockout, d and e are 0. Cells with and without 
+#'   successful knockout are followed separately throughout the experiment, but 
+#'   the pairs are pooled in terms of sequencing reads. grm is the growth rate 
+#'   modifier and is generally 1, but it can be lowered to more properly 
 #'   simulate resistance screens.
-#'
-#' @return Returns a data frame with every row representing a single guide.
-#'   Contains the pertinent parameters of each guide and the number of
+#'   
+#' @return Returns a data frame with every row representing a single guide. 
+#'   Contains the pertinent parameters of each guide and the number of 
 #'   sequencing reads on t0 and all other sampling time points.
-#'
-#' @note The simulator is currently not set up to perform resistance screen
-#'   simulation. A simple alteration to accommodate this is to add a growth rate
-#'   modifier in the formula. This "grm" will then have to be present within
-#'   brackets for the successfully knocked out cells and be added to the formula
-#'   for failed knock out cells. It makes sense to default to grm = 1, and then
-#'   my straight lethal variable d will be centered around 0 instead of 1. For
-#'   now that changes a bit too much of my other analyses, but can be
-#'   incorporated if deemed useful.
-#'
+#'   
 #' @author Jos B. Poell
-#'
+#'   
 #' @examples
 #' simdf <- CRISPRsim(18000, 4, a = c(3,3), e = TRUE, perfectsampling = TRUE)
 #' hist(simdf$g, breaks = 100, main = "distribution of guide efficiencies")
 #' d <- rle(simdf$d)$values
 #' e <- rle(simdf$e)$values
 #' plot(d, e, main = "straight lethality and sensitization")
-#'
+#' 
 #' @export
 
 CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                       harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
-                      fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1,
+                      fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1, em = 1,
                       perfectsampling = FALSE, perfectseq = FALSE, outputfile) {
 
   if (!missing(allseed)) {set.seed(allseed)}
@@ -312,6 +306,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   kocells <- scells[seq_along(guides)]
   nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
   st <- 0
+  grme <- 1+grm*em-em
   for (t in seq_along(a)) {
     print(paste0("started with t", sum(a[seq(1,t)])))
 
@@ -324,10 +319,10 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     } else {
       if (treatmentdelay < t) {st <- 1}
       cellpool <- mapply(function(stud, dud, d, e) {
-        kocells <- round(stud*2^((grm^st+d+e)*a[t]))
-        nkocells <- round(dud*2^(grm^st*a[t]))
+        kocells <- round(stud*2^((grme^st+d+e)*a[t]))
+        nkocells <- round(dud*2^(grme^st*a[t]))
         return(list(kocells = kocells, nkocells = nkocells))
-      }, kocells, nkocells, d, e*st)
+      }, kocells, nkocells, d, e*st*em)
     }
 
     # Note: the vector hpool is made immediately. Not so the vectors kocells and
