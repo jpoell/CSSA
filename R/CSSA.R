@@ -1069,9 +1069,9 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
     i <- unlist(dgi[3,])
     if (secondbest == TRUE) {
       d2 <- unlist(d2j[1,])
-      return(list(d=d,d2=d2,g=g,i=i,j=j))
+      return(list(genes=genes,n=n,d=d,d2=d2,g=g,i=i,j=j))
     } else {
-      return(list(d=d,g=g,i=i))
+      return(list(genes=genes,n=n,d=d,g=g,i=i))
     }
   } else {
     d <- unlist(degi[1,])
@@ -1090,19 +1090,93 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
       e2 <- unlist(d2e2j[2,])
       if (length(rt) > 1) {
         de2 <- unlist(d2e2j[3,])
-        return(list(d=d,d2=d2,e=e,e2=e2,de=de,de2=de2,g=g,i=i,j=j))
+        return(list(genes=genes,n=n,d=d,d2=d2,e=e,e2=e2,de=de,de2=de2,g=g,i=i,j=j))
       } else {
-        return(list(d=d,d2=d2,e=e,e2=e2,g=g,i=i,j=j))
+        return(list(genes=genes,n=n,d=d,d2=d2,e=e,e2=e2,g=g,i=i,j=j))
       }
       
     } else {
       if (length(rt) > 1) {
-        return(list(d=d,e=e,de=de,g=g,i=i))
+        return(list(genes=genes,n=n,d=d,e=e,de=de,g=g,i=i))
       } else {
-        return(list(d=d,e=e,g=g,i=i))
+        return(list(genes=genes,n=n,d=d,e=e,g=g,i=i))
       }
       
     }
   }
   
+}
+
+#' Get a list of essential genes or corresponding indices in the data set
+#' 
+#' ess couples reported essential genes to a data set. Without arguments, it 
+#' returns the list of essential genes. Otherwise, it returns the indices 
+#' corresponding to essential genes.
+#' 
+#' @param guides Character vector. List of guide names. Names of essential genes
+#'   are matched to the string before what is specified in the trnc argument.
+#' @param genes Character vector. List of gene names. Names of essential genes 
+#'   are matched to the given gene names. Matches must be exact.
+#' @param trnc Character. Regular expression pattern to isolate gene name from 
+#'   the guide name. Default = "_.*"
+#'   
+#' @return Returns a character vector with names of essential genes, or a 
+#'   numeric vector with indices representing essential genes in the given data 
+#'   set.
+#'   
+#' @note The list of essential genes was retrieved from
+#'   http://hart-lab.org/downloads.
+#'   
+#' @seealso \code{\link{noness}}
+#'   
+#' @author Jos B. Poell
+#'   
+#' @export
+
+ess <- function(guides, genes, trnc = "_.*") {
+  data("essnoness")
+  if (missing(guides) && missing(genes)) {
+    return(essentials)
+  } else if (!missing(guides)) {
+    return(which(gsub(trnc, "", guides) %in% essentials))
+  } else {
+    return(which(genes %in% essentials))
+  }
+}
+
+#' Get a list of nonessential genes or corresponding indices in the data set
+#' 
+#' noness couples reported nonessential genes to a data set. Without arguments, it 
+#' returns the list of nonessential genes. Otherwise, it returns the indices 
+#' corresponding to nonessential genes.
+#' 
+#' @param guides Character vector. List of guide names. Names of nonessential genes
+#'   are matched to the string before what is specified in the trnc argument.
+#' @param genes Character vector. List of gene names. Names of nonessential genes 
+#'   are matched to the given gene names. Matches must be exact.
+#' @param trnc Character. Regular expression pattern to isolate gene name from 
+#'   the guide name. Default = "_.*"
+#'   
+#' @return Returns a character vector with names of nonessential genes, or a 
+#'   numeric vector with indices representing nonessential genes in the given data 
+#'   set.
+#'   
+#' @note The list of nonessential genes was retrieved from
+#'   http://hart-lab.org/downloads.
+#'   
+#' @seealso \code{\link{noness}}
+#'   
+#' @author Jos B. Poell
+#'   
+#' @export
+
+noness <- function(guides, genes, trnc = "_.*") {
+  data("essnoness")
+  if (missing(guides) && missing(genes)) {
+    return(nonessentials)
+  } else if (!missing(guides)) {
+    return(which(gsub(trnc, "", guides) %in% nonessentials))
+  } else {
+    return(which(genes %in% nonessentials))
+  }
 }

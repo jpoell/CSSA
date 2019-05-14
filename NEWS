@@ -1,0 +1,10 @@
+Changes in version 0.1.1 (2019-05-14)
+-------------------------------------
+
+o added this file ;-)
+o getdeg now also returns genes and n (number of guides)
+o added list of essential and nonessential genes
+o added functions to retrieve names or indices of essential and nonessential genes
+
+
+
