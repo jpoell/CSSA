@@ -8,7 +8,8 @@ CRISPRsim(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
   seqdepth, offtargets = FALSE, allseed = NULL, gseed, fseed, dseed,
   eseed, oseed, t0seed, repseed, grm = 1, em = 1,
-  perfectsampling = FALSE, perfectseq = FALSE, outputfile)
+  perfectsampling = FALSE, perfectseq = FALSE, returnall = FALSE,
+  outputfile)
 }
 \arguments{
 \item{genes}{Single integer or character vector. Specify how many or which 
@@ -98,8 +99,8 @@ knockout cells for each guide}
 \item{grm}{Numeric. Growth rate modifier. Specify adjusted growth rate under 
 treatment conditions. Default = 1}
 
-\item{em}{Numeric. Effect modifier. Specify how effective treatment is. This
-can be used as a proxy for drug concentration. All individual e-values and
+\item{em}{Numeric. Effect modifier. Specify how effective treatment is. This 
+can be used as a proxy for drug concentration. All individual e-values and 
 grm are modified by this multiplier. Default = 1}
 
 \item{perfectsampling}{Logical. If TRUE, all sampling steps are replaced by 
@@ -111,13 +112,19 @@ representation (though still rounded) of guides in the harvested cells.
 Applicable to speed up simulations, assuming sequencing is sufficiently 
 deep. Default = FALSE}
 
+\item{returnall}{Logical. If TRUE, function returns a list with the simulated
+data in the guidesdf, summary per gene in the genesdf, and parameters.
+Default = FALSE}
+
 \item{outputfile}{Character string. When used, returned data frame will be 
 saved as a tab-delimited text to the specified file path}
 }
 \value{
 Returns a data frame with every row representing a single guide. 
   Contains the pertinent parameters of each guide and the number of 
-  sequencing reads on t0 and all other sampling time points.
+  sequencing reads on t0 and all other sampling time points. If the argument 
+  returnall is set to TRUE, the function also returns a data frame with the 
+  true values for the genes, and lists all parameters as well
 }
 \description{
 CRISPRsim simulates a CRISPR-Cas9 pooled screen with user-defined parameters.

@@ -76,8 +76,8 @@
 #' @param repseed Integer. Specify the seed after t0
 #' @param grm Numeric. Growth rate modifier. Specify adjusted growth rate under 
 #'   treatment conditions. Default = 1
-#' @param em Numeric. Effect modifier. Specify how effective treatment is. This
-#'   can be used as a proxy for drug concentration. All individual e-values and
+#' @param em Numeric. Effect modifier. Specify how effective treatment is. This 
+#'   can be used as a proxy for drug concentration. All individual e-values and 
 #'   grm are modified by this multiplier. Default = 1
 #' @param perfectsampling Logical. If TRUE, all sampling steps are replaced by 
 #'   simple equations to calculate representation of guides. Useful as null 
@@ -86,6 +86,9 @@
 #'   representation (though still rounded) of guides in the harvested cells. 
 #'   Applicable to speed up simulations, assuming sequencing is sufficiently 
 #'   deep. Default = FALSE
+#' @param returnall Logical. If TRUE, function returns a list with the simulated
+#'   data in the guidesdf, summary per gene in the genesdf, and parameters.
+#'   Default = FALSE
 #' @param outputfile Character string. When used, returned data frame will be 
 #'   saved as a tab-delimited text to the specified file path
 #'   
@@ -110,7 +113,9 @@
 #'   
 #' @return Returns a data frame with every row representing a single guide. 
 #'   Contains the pertinent parameters of each guide and the number of 
-#'   sequencing reads on t0 and all other sampling time points.
+#'   sequencing reads on t0 and all other sampling time points. If the argument 
+#'   returnall is set to TRUE, the function also returns a data frame with the 
+#'   true values for the genes, and lists all parameters as well
 #'   
 #' @author Jos B. Poell
 #'   
@@ -126,8 +131,9 @@
 CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                       harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
-                      fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1, em = 1,
-                      perfectsampling = FALSE, perfectseq = FALSE, outputfile) {
+                      fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1, 
+                      em = 1, perfectsampling = FALSE, perfectseq = FALSE, 
+                      returnall = FALSE, outputfile) {
 
   if (!missing(allseed)) {set.seed(allseed)}
   if (missing(genes)) {
@@ -170,13 +176,13 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 
   if (missing(g)) {
     message("guide efficiency is randomly sampled from the displayed distribution")
-    if (!missing(gseed)) {set.seed(gseed)} else {set.seed(allseed)}
+    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     bg <- floor(length(guides)/40)
     g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
   } else if (length(g)==1) {
     g <- rep(g, length(guides))
   } else if (length(g) != length(guides)) {
-    if (!missing(gseed)) {set.seed(gseed)} else {set.seed(allseed)}
+    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     g <- sample(g, length(guides), replace = TRUE)
   }
   if (any(g < 0) || any(g > 1)) {
@@ -188,19 +194,35 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   if (missing(f)) {
     message("guide abundance (library representation) is randomly assigned")
     # The allseed is shifted to ascertain randomness between g and f
-    if (!missing(fseed)) {set.seed(fseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
+    if (!missing(fseed)) {
+      set.seed(fseed)
+    } else if (!is.null(gseed)) {
+      fseed <- gseed+1
+      set.seed(fseed)
+    } else {
+      # no need in resetting the seed when it's NULL
+      fseed <- NULL
+    }
     f <- 2^rnorm(length(guides))
   } else if (length(f) == 1) {
     f <- rep(1, length(guides))
     message("assuming equal abundance for all guides")
   } else if (length(f) != length(guides)) {
-    if (!missing(fseed)) {set.seed(fseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
+    if (!missing(fseed)) {
+      set.seed(fseed)
+    } else if (!is.null(gseed)) {
+      fseed <- gseed+1
+      set.seed(fseed)
+    } else {
+      # no need in resetting the seed when it's NULL
+      fseed <- NULL
+    }
     f <- sample(f, length(guides), replace = TRUE)
   }
 
   if (missing(d) || (length(d) == 1 && d == TRUE)) {
     message("effect of gene knockout is randomly sampled from the displayed distribution")
-    if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
+    if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
     ll <- floor(length(genes)/8)
     ml <- floor(length(genes)/3)
     d <- sample(c(rnorm(ll, -0.8, 0.15), rnorm(ml, -0.25, 0.2),
@@ -208,7 +230,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else if (length(d)==1) {
     message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with lenght equal to the number of genes, or a vector with unequal size from which will be sampled")
   } else if (length(d) != length(genes)) {
-    if (!missing(dseed)) {set.seed(dseed)} else {set.seed(allseed)}
+    if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
     d <- sample(d, length(genes), replace = TRUE)
   }
 
@@ -218,13 +240,29 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       # The allseed should not be exactly the same between d and e, because it
       # would sample exactly the same order and create huge biases. Therefore I
       # add 1 to the seed!
-      if (!missing(eseed)) {set.seed(eseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
+      if (!missing(eseed)) {
+        set.seed(eseed)
+      } else if (!is.null(dseed)) {
+        eseed <- dseed+1
+        set.seed(eseed)
+      } else {
+        # no need in resetting the seed when it's NULL
+        eseed <- NULL
+      }
       ls <- ceiling(length(genes)/200)
       lr <- ceiling(length(genes)/1000)
       e <- sample(c(rnorm(ls, -0.7, 0.2), rnorm(lr, 0.7, 0.2),
                     rnorm(length(genes)-ls-lr, 0, 0.05)))
     } else if (length(e) != length(genes)) {
-      if (!missing(eseed)) {set.seed(eseed)} else if (!is.null(allseed)) {set.seed(allseed+1)}
+      if (!missing(eseed)) {
+        set.seed(eseed)
+      } else if (!is.null(dseed)) {
+        eseed <- dseed+1
+        set.seed(eseed)
+      } else {
+        # no need in resetting the seed when it's NULL
+        eseed <- NULL
+      }
       e <- sample(e, length(genes), replace = TRUE)
     }
     unique_e <- e
@@ -240,9 +278,11 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   if (any(is.na(d)) || any(is.null(d)) || any(is.character(d))) {
     stop("This is not going to go well, not all d-values are numeric!")
   }
-
+  
+  offtarget_guides <- rep(0, length(genes))
+  
+  if (!missing(oseed)) {set.seed(oseed)} else {oseed <- allseed; set.seed(oseed)}
   if (offtargets != FALSE) {
-    if (!missing(oseed)) {set.seed(oseed)} else {set.seed(allseed)}
     if (offtargets == TRUE) {offtargets <- 0.001}
     tochange <- which(runif(length(guides)) < offtargets)
     changeto <- round(runif(length(tochange))*length(genes)+0.5)
@@ -250,6 +290,20 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     if (!missing(e)) {
       e[tochange] <- unique_e[changeto]
     }
+    off_per_gene <- sapply(tochange, function(x) {
+      min(which(x <= cumsum(n)))
+    })
+    for (o in off_per_gene) {
+      offtarget_guides[o] <- offtarget_guides[o]+1
+    }
+  }
+  
+  
+  
+  if (!missing(e)) {
+    gdf <- data.frame(genes, n, offtarget_guides, d = unique_d, e = unique_e)
+  } else {
+    gdf <- data.frame(genes, n, offtarget_guides, d = unique_d)
   }
 
   if (missing(seededcells)) {
@@ -273,7 +327,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     seqdepth <- append(seqdepth, rep(tail(seqdepth, 1), length(a)+1-length(seqdepth)))
   }
 
-  if (!missing(t0seed)) {set.seed(t0seed)} else {set.seed(allseed)}
+  if (!missing(t0seed)) {set.seed(t0seed)} else {t0seed <- allseed; set.seed(t0seed)}
 
   print("started with t0")
   readmat <- matrix(ncol = length(seqdepth), nrow = length(guides))
@@ -301,7 +355,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 
   colnames(readmat) <- c("t0", paste0("t", cumsum(a)))
 
-  if (!missing(repseed)) {set.seed(repseed)} else {set.seed(allseed)}
+  if (!missing(repseed)) {set.seed(repseed)} else {repseed <- allseed; set.seed(repseed)}
 
   kocells <- scells[seq_along(guides)]
   nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
@@ -405,7 +459,60 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     write.table(df, outputfile, row.names = FALSE, quote = FALSE, sep = "\t")
   }
 
-  return(df)
+  if (returnall == TRUE && missing(e)) {
+    return(list(
+      guidesdf = df,
+      genesdf = gdf,
+      a = a,
+      g = g,
+      f = f,
+      offtargets = offtargets,
+      seededcells = seededcells, 
+      harvestedcells = harvestedcells,
+      harvestall = harvestall,
+      seqdepth = seqdepth,
+      cellreplace = cellreplace, 
+      perfectsampling = perfectsampling,
+      perfectseq = perfectseq,
+      grm = grm,
+      allseed = allseed,
+      gseed = gseed,
+      fseed = fseed,
+      dseed = dseed,
+      oseed = oseed,
+      t0seed = t0seed,
+      repseed = repseed
+    ))
+  } else if (returnall == TRUE && !missing(e)) {
+    return(list(
+      guidesdf = df,
+      genesdf = gdf,
+      a = a,
+      g = g,
+      f = f,
+      offtargets = offtargets,
+      treatmentdelay = treatmentdelay,
+      seededcells = seededcells, 
+      harvestedcells = harvestedcells,
+      harvestall = harvestall,
+      seqdepth = seqdepth,
+      cellreplace = cellreplace, 
+      perfectsampling = perfectsampling,
+      perfectseq = perfectseq,
+      grm = grm,
+      em = em,
+      allseed = allseed,
+      gseed = gseed,
+      fseed = fseed,
+      dseed = dseed,
+      eseed = eseed,
+      oseed = oseed,
+      t0seed = t0seed,
+      repseed = repseed
+    ))
+  } else {
+    return(df) 
+  }
 
 }
 
@@ -767,82 +874,89 @@ sumZ <- function(guides, Z) {
 # luck!
 
 #' Derive growth-modifying effect of gene knockout in pooled experiments
-#'
-#' getdeg was specifically designed to derive the effect of gene knockout on
-#' cell growth based on results from pooled CRISPR-Cas9 experiments. Using a
+#' 
+#' getdeg was specifically designed to derive the effect of gene knockout on 
+#' cell growth based on results from pooled CRISPR-Cas9 experiments. Using a 
 #' combination of both rate ratios and (assumed or estimated) maximum population
-#' doublings, the straight lethality and optionally sensitization / synthetic
-#' lethality are calculated based on the "most efficacious guide targeting the
-#' gene", i.e. the feature that shows the most extreme rate ratio change within
+#' doublings, the straight lethality and optionally sensitization / synthetic 
+#' lethality are calculated based on the "most efficacious guide targeting the 
+#' gene", i.e. the feature that shows the most extreme rate ratio change within 
 #' its group.
-#'
-#' @param guides Character vector. Guides are assumed to start with the gene
-#'   name, followed by an underscore, followed by a number or sequence unique
+#' 
+#' @param guides Character vector. Guides are assumed to start with the gene 
+#'   name, followed by an underscore, followed by a number or sequence unique 
 #'   within that gene.
-#' @param r0 Numeric vector. Rate ratios of features representing straight
+#' @param r0 Numeric vector. Rate ratios of features representing straight 
 #'   lethality.
-#' @param r1 Numeric vector. Rate ratios of features representing sensitization
+#' @param r1 Numeric vector. Rate ratios of features representing sensitization 
 #'   or synthetic lethality. Optional but required to calculate e.
-#' @param rt Numeric vector. Rate ratios of features representing lethality in
+#' @param rt Numeric vector. Rate ratios of features representing lethality in 
 #'   the test sample. Optional.
-#' @param a Numeric. Estimated potential population doublings between time
+#' @param a Numeric. Estimated potential population doublings between time 
 #'   points.
-#' @param b Numeric. Estimated potential population doublings between time
-#'   points in test sample. Only applicable if r1 is given. If omitted, assumed
+#' @param b Numeric. Estimated potential population doublings between time 
+#'   points in test sample. Only applicable if r1 is given. If omitted, assumed 
 #'   equal to a.
-#' @param secondbest Logical. If TRUE, calculate effect sizes based on the
+#' @param secondbest Logical. If TRUE, calculate effect sizes based on the 
 #'   second best guides of each gene as well. Default = TRUE
-#' @param skipcutoff Logical or numeric. If specified, do no calculate effect
-#'   sizes of genes with maximum absolute rate ratios below this cut-off.
+#' @param skipcutoff Logical or numeric. If specified, do no calculate effect 
+#'   sizes of genes with maximum absolute rate ratios below this cut-off. 
 #'   Default = FALSE
-#' @param correctab Logical. When \code{a != b}, it is be possible (and
-#'   necessary?) to mathematically correct for this difference. If you analyze
-#'   an experiment with unequal a and b, try both with and without correction
+#' @param correctab Logical. When \code{a != b}, it is be possible (and 
+#'   necessary?) to mathematically correct for this difference. If you analyze 
+#'   an experiment with unequal a and b, try both with and without correction 
 #'   and read the notes below. Default = TRUE
-#'
-#' @details getdeg derives gene knockout effect sizes based on rate ratios.
-#'   These in turn are derived from sequencing coverage of the features (e.g.
-#'   guides in a CRISPR-bases screen). The function expects log2-transformed
-#'   rate ratios. It also requires an estimate of potential population
-#'   doublings, basically meaning that cells without successful knockout (or
-#'   knockout of a gene without any growth-modifying effect) would have divided
-#'   this many times. An example: the log2 rate ratio r0 of a guide between t1
-#'   and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was
-#'   successful in all cells (g = 1), the effect of the corresponding gene
-#'   knockout is d = r/a = -0.5. The function assumes the guide with the most
-#'   extreme r with the same direction as the median r of all guides targeting
-#'   that gene has this efficacy of 1, and then calculates g for the other
-#'   guides. Things get more interesting when there is also a treatment effect.
-#'   In this case it compares rate ratios of treated versus untreated and t1
-#'   versus t0. From these it will decide which is the best guide and calculate
-#'   both straight lethal effect d and sensitizing effect e. Optionally, but by
-#'   default, the effects based on the second-best guide are also calculated.
-#'   This function does not do anything in terms of statistics. It expects
+#'   
+#' @details getdeg derives gene knockout effect sizes based on rate ratios. 
+#'   These in turn are derived from sequencing coverage of the features (e.g. 
+#'   guides in a CRISPR-bases screen). The function expects log2-transformed 
+#'   rate ratios. It also requires an estimate of potential population 
+#'   doublings, basically meaning that cells without successful knockout (or 
+#'   knockout of a gene without any growth-modifying effect) would have divided 
+#'   this many times. An example: the log2 rate ratio r0 of a guide between t1 
+#'   and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was 
+#'   successful in all cells (g = 1), the effect of the corresponding gene 
+#'   knockout is d = r/a = -0.5. The function assumes the guide with the most 
+#'   extreme r with the same direction as the median r of all guides targeting 
+#'   that gene has this efficacy of 1, and then calculates g for the other 
+#'   guides. Things get more interesting when there is also a treatment effect. 
+#'   In this case it compares rate ratios of treated versus untreated and t1 
+#'   versus t0. From these it will decide which is the best guide and calculate 
+#'   both straight lethal effect d and sensitizing effect e. Optionally, but by 
+#'   default, the effects based on the second-best guide are also calculated. 
+#'   This function does not do anything in terms of statistics. It expects 
 #'   precautions are taken in the calculation of rate ratios!
-#'
-#' @return Returns a list with the following (depending on input arguments): \itemize{ \item{d}{ - gene
-#'   knockout effects on straight lethality} \item{d2}{ - gene knockout effects
-#'   on straight lethality based on the second-best guide} \item{e}{ - gene
-#'   knockout effects on sensitization} \item{e2}{ - gene knockout effects on
-#'   sensitization based on the second-best guide} \item{de}{ - gene
-#'   knockout effects on straight lethality in the test arm} \item{de2}{ - gene knockout effects on
-#'   straight lethality in the test arm based on the second-best guide} \item{g}{ - estimated guide
-#'   efficacy} \item{i}{ - within-gene index of the best guide} \item{j}{ -
-#'   within-gene index of the second-best guide} }
-#'
+#'   
+#' @return Returns a list with the following (depending on input arguments):
+#'   \itemize{
+#'     \item{genes}{ - list of all gene symbols}
+#'     \item{n}{ - number of guides representing the gene}
+#'     \item{d}{ - gene knockout effects on straight lethality}
+#'     \item{d2}{ - gene knockout effects on straight lethality based on the
+#'                  second-best guide} 
+#'     \item{e}{ - gene knockout effects on sensitization}
+#'     \item{e2}{ - gene knockout effects on sensitization based on the
+#'                  second-best guide} 
+#'     \item{de}{ - gene knockout effects on straight lethality in the test arm} 
+#'     \item{de2}{ - gene knockout effects on straight lethality in the test arm 
+#'                   based on the second-best guide} 
+#'     \item{g}{ - estimated guide efficacy} 
+#'     \item{i}{ - within-gene index of the best guide} 
+#'     \item{j}{ - within-gene index of the second-best guide} }
+#'   
 #' @note When comparing two experimental arms that have had different numbers of
-#'   population doublings, things get quirky. I have put the mathematical
-#'   correction in the function, which you can turn off with \code{correctab =
-#'   FALSE}. I have noticed that correction gives straight lethal genes
-#'   artificially high treatment resistance (positive e). But when I do not
+#'   population doublings, things get quirky. I have put the mathematical 
+#'   correction in the function, which you can turn off with \code{correctab = 
+#'   FALSE}. I have noticed that correction gives straight lethal genes 
+#'   artificially high treatment resistance (positive e). But when I do not 
 #'   correct, I see a downward skew here. In case of a resistance screen, it may
 #'   be more useful to look at the uncorrected variant. If you are interested in
 #'   picking up sensitizers, I would recommend correcting.
-#'
+#'   
 #' @seealso \code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}
-#'
+#'   
 #' @author Jos B. Poell
-#'
+#'   
 #' @examples
 #' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1)
 #' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1)
@@ -854,7 +968,7 @@ sumZ <- function(guides, Z) {
 #' reale <- rle(tr$e)$values
 #' plot(reald, deg$d)
 #' plot(reale, deg$e)
-#'
+#' 
 #' @export
 
 getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
