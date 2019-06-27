@@ -228,7 +228,8 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     d <- sample(c(rnorm(ll, -0.8, 0.15), rnorm(ml, -0.25, 0.2),
                   rnorm(length(genes)-ll-ml, -0.05, 0.05)))
   } else if (length(d)==1) {
-    message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with lenght equal to the number of genes, or a vector with unequal size from which will be sampled")
+    message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with length equal to the number of genes, or a vector with unequal size from which will be sampled")
+    d <- rep(d, length(genes))
   } else if (length(d) != length(genes)) {
     if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
     d <- sample(d, length(genes), replace = TRUE)
