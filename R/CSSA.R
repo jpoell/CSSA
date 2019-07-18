@@ -52,7 +52,8 @@
 #'   of cells without replacement. Note that this is the most realistic 
 #'   simulation of a screen, but then you should also keep realistic passaging 
 #'   times! It is recommended to keep the total number of cells in the 
-#'   experiment below 200 million. Default = TRUE
+#'   experiment below 200 million. Setting this to TRUE can dramatically speed
+#'   up simulations. Default = FALSE
 #' @param treatmentdelay Integer. In case of a treatment experiment, specify 
 #'   when treatment starts. It is currently only possible to start treatment on 
 #'   one of the experimental time points. Default = 0
@@ -87,7 +88,7 @@
 #'   Applicable to speed up simulations, assuming sequencing is sufficiently 
 #'   deep. Default = FALSE
 #' @param returnall Logical. If TRUE, function returns a list with the simulated
-#'   data in the guidesdf, summary per gene in the genesdf, and parameters.
+#'   data in the guidesdf, summary per gene in the genesdf, and parameters. 
 #'   Default = FALSE
 #' @param outputfile Character string. When used, returned data frame will be 
 #'   saved as a tab-delimited text to the specified file path
@@ -129,7 +130,7 @@
 #' @export
 
 CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
-                      harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
+                      harvestall = TRUE, cellreplace = FALSE, treatmentdelay = 0,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
                       fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1, 
                       em = 1, perfectsampling = FALSE, perfectseq = FALSE, 
@@ -151,7 +152,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     stop("please enter the number of population doublings before sampling, or a vector with doublings until the next sampling")
   }
   if (cellreplace == FALSE) {
-    message("keep in mind sampling with replacement can blow up your computer!")
+    message("keep in mind sampling without replacement can blow up your computer!")
   }
 
   if (length(genes)==1 && (is(genes, "integer") || is(genes, "numeric"))) {
@@ -175,16 +176,20 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   }
 
   if (missing(g)) {
-    message("guide efficiency is randomly sampled from the displayed distribution")
+    message("guide efficiency is randomly sampled from an empirical distribution")
     if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     bg <- floor(length(guides)/40)
     g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
   } else if (length(g)==1) {
+    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     g <- rep(g, length(guides))
   } else if (length(g) != length(guides)) {
     if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     g <- sample(g, length(guides), replace = TRUE)
+  } else {
+    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
   }
+  
   if (any(g < 0) || any(g > 1)) {
     warning("g represents guide efficacy and should be a number between 0 and 1; values have been constrained")
     g[g < 0] <- 0
@@ -205,6 +210,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     }
     f <- 2^rnorm(length(guides))
   } else if (length(f) == 1) {
+    if (missing(fseed)) {fseed <- NULL}
     f <- rep(1, length(guides))
     message("assuming equal abundance for all guides")
   } else if (length(f) != length(guides)) {
@@ -216,12 +222,14 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     } else {
       # no need in resetting the seed when it's NULL
       fseed <- NULL
-    }
+    } 
     f <- sample(f, length(guides), replace = TRUE)
+  } else {
+    if (missing(fseed)) {fseed <- NULL}
   }
 
   if (missing(d) || (length(d) == 1 && d == TRUE)) {
-    message("effect of gene knockout is randomly sampled from the displayed distribution")
+    message("effect of gene knockout is randomly sampled from an empirical distribution")
     if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
     ll <- floor(length(genes)/8)
     ml <- floor(length(genes)/3)
@@ -237,7 +245,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 
   if (!missing(e)) {
     if (length(e) == 1 && e == TRUE) {
-      message("arm-specific effect modifier is randomly sampled from the displayed distribution")
+      message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
       # The allseed should not be exactly the same between d and e, because it
       # would sample exactly the same order and create huge biases. Therefore I
       # add 1 to the seed!
@@ -314,15 +322,13 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     seededcells <- append(seededcells, rep(tail(seededcells, 1), length(a)+1-length(seededcells)))
   }
   if (missing(harvestedcells)) {
-    if (harvestall == FALSE) {message("assuming harvest at t0 equals seeded cells")}
-    else {message("assuming harvested cells equals seeded cells at each passaging")}
     harvestedcells <- seededcells
   } else if (length(harvestedcells) <= length(a)) {
     harvestedcells <- append(harvestedcells, rep(tail(harvestedcells, 1), length(a)+1-length(harvestedcells)))
   }
 
   if (missing(seqdepth)) {
-    message("assuming mean depth of 500 reads per guide")
+    message("assuming mean sequencing depth of 500 reads per guide")
     seqdepth <- rep(500*length(guides), length(a)+1)
   } else if (length(seqdepth) <= length(a)) {
     seqdepth <- append(seqdepth, rep(tail(seqdepth, 1), length(a)+1-length(seqdepth)))
@@ -385,6 +391,12 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     # next iteration of the loop. If the kocells or nkocells are needed, they
     # are unlisted from cellpool.
     hpool <- unlist(cellpool[1,])+unlist(cellpool[2,])
+    neededcells <- seededcells[t+1] + harvestedcells[t+1]
+    if (neededcells > sum(hpool)) {
+      warning(paste0("not enough cells at t", t))
+      seededcells[t+1] <- floor(sum(hpool)*seededcells[t+1]/neededcells)
+      harvestedcells[t+1] <- floor(sum(hpool)*harvestedcells[t+1]/neededcells)
+    }
     if (perfectsampling == TRUE) {
       kocells <- round(unlist(cellpool[1,])*seededcells[t+1]/sum(hpool))
       nkocells <- round(unlist(cellpool[2,])*seededcells[t+1]/sum(hpool))
@@ -392,12 +404,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     } else {
 
       if (cellreplace == FALSE) {
-        neededcells <- seededcells[t+1] + harvestedcells[t+1]
-        if (neededcells > sum(hpool)) {
-          warning(paste0("not enough cells at t", t))
-          seededcells[t+1] <- floor(sum(hpool)*seededcells[t+1]/neededcells)
-          harvestedcells[t+1] <- floor(sum(hpool)*harvestedcells[t+1]/neededcells)
-        }
+        
         scells <- tabulate(c(seq_along(c(guides,guides)),
                              sample(rep(seq_along(c(guides,guides)),
                                         c(unlist(cellpool[1,]), unlist(cellpool[2,]))),

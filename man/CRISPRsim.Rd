@@ -5,7 +5,7 @@
 \title{Simulate a CRISPR-Cas9 pooled screen}
 \usage{
 CRISPRsim(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
-  harvestall = TRUE, cellreplace = TRUE, treatmentdelay = 0,
+  harvestall = TRUE, cellreplace = FALSE, treatmentdelay = 0,
   seqdepth, offtargets = FALSE, allseed = NULL, gseed, fseed, dseed,
   eseed, oseed, t0seed, repseed, grm = 1, em = 1,
   perfectsampling = FALSE, perfectseq = FALSE, returnall = FALSE,
@@ -62,7 +62,8 @@ points beyond t0. Default = TRUE}
 of cells without replacement. Note that this is the most realistic 
 simulation of a screen, but then you should also keep realistic passaging 
 times! It is recommended to keep the total number of cells in the 
-experiment below 200 million. Default = TRUE}
+experiment below 200 million. Setting this to TRUE can dramatically speed
+up simulations. Default = FALSE}
 
 \item{treatmentdelay}{Integer. In case of a treatment experiment, specify 
 when treatment starts. It is currently only possible to start treatment on 
@@ -113,7 +114,7 @@ Applicable to speed up simulations, assuming sequencing is sufficiently
 deep. Default = FALSE}
 
 \item{returnall}{Logical. If TRUE, function returns a list with the simulated
-data in the guidesdf, summary per gene in the genesdf, and parameters.
+data in the guidesdf, summary per gene in the genesdf, and parameters. 
 Default = FALSE}
 
 \item{outputfile}{Character string. When used, returned data frame will be 
