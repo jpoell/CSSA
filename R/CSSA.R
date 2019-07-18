@@ -174,63 +174,49 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
       genes <- rle(gsub("_.*", "", guides))$values
     }
   }
-
+  
+  if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
   if (missing(g)) {
     message("guide efficiency is randomly sampled from an empirical distribution")
-    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     bg <- floor(length(guides)/40)
     g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
   } else if (length(g)==1) {
-    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     g <- rep(g, length(guides))
   } else if (length(g) != length(guides)) {
-    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
     g <- sample(g, length(guides), replace = TRUE)
-  } else {
-    if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
-  }
+  } 
   
   if (any(g < 0) || any(g > 1)) {
     warning("g represents guide efficacy and should be a number between 0 and 1; values have been constrained")
     g[g < 0] <- 0
     g[g > 1] <- 1
   }
-
+  
+  if (!missing(fseed)) {
+    set.seed(fseed)
+  } else if (!is.null(gseed)) {
+    fseed <- gseed+1
+    set.seed(fseed)
+  } else {
+    # no need in resetting the seed when it's NULL
+    fseed <- NULL
+  }
   if (missing(f)) {
     message("guide abundance (library representation) is randomly assigned")
     # The allseed is shifted to ascertain randomness between g and f
-    if (!missing(fseed)) {
-      set.seed(fseed)
-    } else if (!is.null(gseed)) {
-      fseed <- gseed+1
-      set.seed(fseed)
-    } else {
-      # no need in resetting the seed when it's NULL
-      fseed <- NULL
-    }
+    
     f <- 2^rnorm(length(guides))
   } else if (length(f) == 1) {
-    if (missing(fseed)) {fseed <- NULL}
     f <- rep(1, length(guides))
     message("assuming equal abundance for all guides")
   } else if (length(f) != length(guides)) {
-    if (!missing(fseed)) {
-      set.seed(fseed)
-    } else if (!is.null(gseed)) {
-      fseed <- gseed+1
-      set.seed(fseed)
-    } else {
-      # no need in resetting the seed when it's NULL
-      fseed <- NULL
-    } 
     f <- sample(f, length(guides), replace = TRUE)
-  } else {
-    if (missing(fseed)) {fseed <- NULL}
-  }
-
+  } 
+  
+  if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
   if (missing(d) || (length(d) == 1 && d == TRUE)) {
     message("effect of gene knockout is randomly sampled from an empirical distribution")
-    if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
+    
     ll <- floor(length(genes)/8)
     ml <- floor(length(genes)/3)
     d <- sample(c(rnorm(ll, -0.8, 0.15), rnorm(ml, -0.25, 0.2),
@@ -238,40 +224,33 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else if (length(d)==1) {
     message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with length equal to the number of genes, or a vector with unequal size from which will be sampled")
     d <- rep(d, length(genes))
+    
   } else if (length(d) != length(genes)) {
-    if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
     d <- sample(d, length(genes), replace = TRUE)
-  }
-
+  } 
+  
   if (!missing(e)) {
+    if (!missing(eseed)) {
+      set.seed(eseed)
+    } else if (!is.null(dseed)) {
+      eseed <- dseed+1
+      set.seed(eseed)
+    } else {
+      # no need in resetting the seed when it's NULL
+      eseed <- NULL
+    }
     if (length(e) == 1 && e == TRUE) {
       message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
       # The allseed should not be exactly the same between d and e, because it
       # would sample exactly the same order and create huge biases. Therefore I
       # add 1 to the seed!
-      if (!missing(eseed)) {
-        set.seed(eseed)
-      } else if (!is.null(dseed)) {
-        eseed <- dseed+1
-        set.seed(eseed)
-      } else {
-        # no need in resetting the seed when it's NULL
-        eseed <- NULL
-      }
+      
       ls <- ceiling(length(genes)/200)
       lr <- ceiling(length(genes)/1000)
       e <- sample(c(rnorm(ls, -0.7, 0.2), rnorm(lr, 0.7, 0.2),
                     rnorm(length(genes)-ls-lr, 0, 0.05)))
     } else if (length(e) != length(genes)) {
-      if (!missing(eseed)) {
-        set.seed(eseed)
-      } else if (!is.null(dseed)) {
-        eseed <- dseed+1
-        set.seed(eseed)
-      } else {
-        # no need in resetting the seed when it's NULL
-        eseed <- NULL
-      }
+      
       e <- sample(e, length(genes), replace = TRUE)
     }
     unique_e <- e
