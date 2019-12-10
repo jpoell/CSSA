@@ -41,22 +41,17 @@ an experiment with unequal a and b, try both with and without correction
 and read the notes below. Default = TRUE}
 }
 \value{
-Returns a list with the following (depending on input arguments):
-  \itemize{
-    \item{genes}{ - list of all gene symbols}
-    \item{n}{ - number of guides representing the gene}
-    \item{d}{ - gene knockout effects on straight lethality}
-    \item{d2}{ - gene knockout effects on straight lethality based on the
-                 second-best guide} 
-    \item{e}{ - gene knockout effects on sensitization}
-    \item{e2}{ - gene knockout effects on sensitization based on the
-                 second-best guide} 
-    \item{de}{ - gene knockout effects on straight lethality in the test arm} 
-    \item{de2}{ - gene knockout effects on straight lethality in the test arm 
-                  based on the second-best guide} 
-    \item{g}{ - estimated guide efficacy} 
-    \item{i}{ - within-gene index of the best guide} 
-    \item{j}{ - within-gene index of the second-best guide} }
+Returns a list with the following (depending on input arguments): 
+  \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
+  guides representing the gene} \item{d}{ - gene knockout effects on straight
+  lethality} \item{d2}{ - gene knockout effects on straight lethality based
+  on the second-best guide} \item{e}{ - gene knockout effects on
+  sensitization} \item{e2}{ - gene knockout effects on sensitization based on
+  the second-best guide} \item{de}{ - gene knockout effects on straight
+  lethality in the test arm} \item{de2}{ - gene knockout effects on straight
+  lethality in the test arm based on the second-best guide} \item{g}{ -
+  estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
+  \item{j}{ - within-gene index of the second-best guide} }
 }
 \description{
 getdeg was specifically designed to derive the effect of gene knockout on 
@@ -83,8 +78,10 @@ getdeg derives gene knockout effect sizes based on rate ratios.
   guides. Things get more interesting when there is also a treatment effect. 
   In this case it compares rate ratios of treated versus untreated and t1 
   versus t0. From these it will decide which is the best guide and calculate 
-  both straight lethal effect d and sensitizing effect e. Optionally, but by 
-  default, the effects based on the second-best guide are also calculated. 
+  both straight lethal effect d and sensitizing effect e. Although this will
+  generally improve robustness, it is always a good idea to compare the
+  results with the analysis of a single rate ratio measure. Optionally, but
+  by default, the effects based on the second-best guide are also calculated.
   This function does not do anything in terms of statistics. It expects 
   precautions are taken in the calculation of rate ratios!
 }

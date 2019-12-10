@@ -905,27 +905,24 @@ sumZ <- function(guides, Z) {
 #'   guides. Things get more interesting when there is also a treatment effect. 
 #'   In this case it compares rate ratios of treated versus untreated and t1 
 #'   versus t0. From these it will decide which is the best guide and calculate 
-#'   both straight lethal effect d and sensitizing effect e. Optionally, but by 
-#'   default, the effects based on the second-best guide are also calculated. 
+#'   both straight lethal effect d and sensitizing effect e. Although this will
+#'   generally improve robustness, it is always a good idea to compare the
+#'   results with the analysis of a single rate ratio measure. Optionally, but
+#'   by default, the effects based on the second-best guide are also calculated.
 #'   This function does not do anything in terms of statistics. It expects 
 #'   precautions are taken in the calculation of rate ratios!
 #'   
-#' @return Returns a list with the following (depending on input arguments):
-#'   \itemize{
-#'     \item{genes}{ - list of all gene symbols}
-#'     \item{n}{ - number of guides representing the gene}
-#'     \item{d}{ - gene knockout effects on straight lethality}
-#'     \item{d2}{ - gene knockout effects on straight lethality based on the
-#'                  second-best guide} 
-#'     \item{e}{ - gene knockout effects on sensitization}
-#'     \item{e2}{ - gene knockout effects on sensitization based on the
-#'                  second-best guide} 
-#'     \item{de}{ - gene knockout effects on straight lethality in the test arm} 
-#'     \item{de2}{ - gene knockout effects on straight lethality in the test arm 
-#'                   based on the second-best guide} 
-#'     \item{g}{ - estimated guide efficacy} 
-#'     \item{i}{ - within-gene index of the best guide} 
-#'     \item{j}{ - within-gene index of the second-best guide} }
+#' @return Returns a list with the following (depending on input arguments): 
+#'   \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
+#'   guides representing the gene} \item{d}{ - gene knockout effects on straight
+#'   lethality} \item{d2}{ - gene knockout effects on straight lethality based
+#'   on the second-best guide} \item{e}{ - gene knockout effects on
+#'   sensitization} \item{e2}{ - gene knockout effects on sensitization based on
+#'   the second-best guide} \item{de}{ - gene knockout effects on straight
+#'   lethality in the test arm} \item{de2}{ - gene knockout effects on straight
+#'   lethality in the test arm based on the second-best guide} \item{g}{ -
+#'   estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
+#'   \item{j}{ - within-gene index of the second-best guide} }
 #'   
 #' @note When comparing two experimental arms that have had different numbers of
 #'   population doublings, things get quirky. I have put the mathematical 
@@ -984,7 +981,7 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
         d <- r/a
         g <- sapply(seq_len(n), function(i) {
           # The extra if statement is necessary to prevent 0/0
-          if (d == 1 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
+          if (d == 0 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
           # Mathematically, g can end up below 0 or above 1 in some instances.
           # We cannot have that ...
           g[g < 0] <- 0
@@ -1072,17 +1069,17 @@ getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
         g <- sapply(seq_len(n), function(i) {
           
           if (w == 1) {
-            if (d == 1 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
+            if (d == 0 && r0[gi-n+i] == 0) {g <- 1} else {g <- (2^(r0[gi-n+i])-1) / (2^(a*d)-1)}
             g[g < 0] <- 0
             g[g > 1] <- 1
             
           } else if (w == 2) {
-            if (e == 1 && r1[gi-n+i] == 0) {g <- 1} else {g <- (2^(r1[gi-n+i])-1) / (2^(b*e)-1)}
+            if (e == 0 && r1[gi-n+i] == 0) {g <- 1} else {g <- (2^(r1[gi-n+i])-1) / (2^(b*e)-1)}
             g[g < 0] <- 0
             g[g > 1] <- 1
             
           } else {
-            if (de == 1 && rt[gi-n+i] == 0) {g <- 1} else {g <- (2^(rt[gi-n+i])-1) / (2^(b*de)-1)}
+            if (de == 0 && rt[gi-n+i] == 0) {g <- 1} else {g <- (2^(rt[gi-n+i])-1) / (2^(b*de)-1)}
             g[g < 0] <- 0
             g[g > 1] <- 1
             
