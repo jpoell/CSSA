@@ -51,12 +51,13 @@ oddscores <- function(r, normsubset, log = 10) {
     rsub <- sort(r[normsubset])
     rmax <- max(rsub)
     rmin <- min(rsub)
+    rmed <- median(rsub)
     n <- length(rsub)
     odds <- sapply(r, function(x) {
       if (x <= rmin) {
-        return((rmax-rmin)/((rmax-x)*n))
+        return((rmed-rmin)/((rmed-x)*n))
       } else if (x >= rmax) {
-        return(((x-rmin)*n)/(rmax-rmin))
+        return(((x-rmed)*n)/(rmax-rmed))
       } else {
         rankup <- sum(rsub <= x)
         rankdown <- sum(rsub >= x)
