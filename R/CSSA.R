@@ -1303,7 +1303,7 @@ ess <- function(guides, genes, trnc = "_.*") {
 #' @note The list of nonessential genes was retrieved from
 #'   http://hart-lab.org/downloads.
 #'   
-#' @seealso \code{\link{noness}}
+#' @seealso \code{\link{ess}}
 #'   
 #' @author Jos B. Poell
 #'   
