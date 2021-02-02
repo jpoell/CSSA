@@ -39,7 +39,8 @@ which it calculates rate ratios of the rate ratios for all features. The
 function was designed to prevent zeros in count data.
 }
 \seealso{
-\code{\link{jar}}
+\code{\link{jar}}, \code{\link{nestedradjust}}, \code{\link{ess}},
+  \code{\link{noness}}
 }
 \author{
 Jos B. Poell

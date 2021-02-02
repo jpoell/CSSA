@@ -55,7 +55,8 @@ nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
 
 }
 \seealso{
-\code{\link{radjust}}, \code{\link{CRISPRsim}}
+\code{\link{radjust}}, \code{\link{doublejar}}, \code{\link{ess}},
+  \code{\link{noness}}
 }
 \author{
 Jos B. Poell

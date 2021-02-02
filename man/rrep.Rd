@@ -8,48 +8,48 @@ rrep(t1, t0, paired = TRUE, normfun = "sum", normsubset,
   rstat = "summed")
 }
 \arguments{
-\item{t1}{Matrix or data frame, with rows representing features and columns 
+\item{t1}{Matrix or data frame, with rows representing features and columns
 representing replicates of measurements at t1 (or treated).}
 
-\item{t0}{Matrix or data frame, with rows representing features and columns 
+\item{t0}{Matrix or data frame, with rows representing features and columns
 representing replicates of measurements at t0 (or untreated).}
 
 \item{paired}{Logical. Are measurements paired? Default = TRUE}
 
-\item{normfun}{Character string. Specify with which function to standardize 
+\item{normfun}{Character string. Specify with which function to standardize
 the data. Default = "sum"}
 
 \item{normsubset}{Integer vector. Specify the indices of features that are to
 be used in standardization}
 
-\item{rstat}{Character string. Specify whether rate ratios are calculated 
-over the sum of the counts in replicates or as the mean of the log2 rate 
+\item{rstat}{Character string. Specify whether rate ratios are calculated
+over the sum of the counts in replicates or as the mean of the log2 rate
 ratios. Default = "summed"}
 }
 \value{
-Returns a data frame with the log2-transformed rate ratio and 
+Returns a data frame with the log2-transformed rate ratio and
   corresponding standard error of each feature.
 }
 \description{
-rrep calculates rate ratios and corresponding standard errors of features 
-based on the presence of replicates. The function uses the compound variance 
-of the rate ratio of replicates as well as the variance associated with read 
-depth (i.e. counts). Rate ratio and standard error are expressed as 
+rrep calculates rate ratios and corresponding standard errors of features
+based on the presence of replicates. The function uses the compound variance
+of the rate ratio of replicates as well as the variance associated with read
+depth (i.e. counts). Rate ratio and standard error are expressed as
 log2-values.
 }
 \details{
-This function combines the confidence based on replicate 
-  measurements with the confidence based on counts (e.g. read depth). 
-  Utilizing replicates to assess confidence in point estimates of individual 
-  features is commonplace in many analyses. However, in data sets with many 
-  features just by chance some features will have measurements that lie very 
-  close together. By adding the variance based on the count data, spurious 
+This function combines the confidence based on replicate
+  measurements with the confidence based on counts (e.g. read depth).
+  Utilizing replicates to assess confidence in point estimates of individual
+  features is commonplace in many analyses. However, in data sets with many
+  features just by chance some features will have measurements that lie very
+  close together. By adding the variance based on the count data, spurious
   findings are greatly reduced, especially when counts are low. Variance of
   count data on a log2-transformed scale is approximated with the formula
-  1/(log(2)^2*count)
+  \code{1/(log(2)^2*count)}
 }
 \note{
-If the data contain zeros, a pseudocount of 1/replicates is added to 
+If the data contain zeros, a pseudocount of 1/replicates is added to
   all counts.
 }
 \examples{
@@ -66,7 +66,8 @@ If the data contain zeros, a pseudocount of 1/replicates is added to
 
 }
 \seealso{
-\code{\link{degrep}}
+\code{\link{degrep}}, \code{\link{CRISPRsim}}, \code{\link{ess}},
+  \code{\link{noness}}
 }
 \author{
 Jos B. Poell

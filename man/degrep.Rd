@@ -2,102 +2,102 @@
 % Please edit documentation in R/rrep_degrep.R
 \name{degrep}
 \alias{degrep}
-\title{Derive growth-modifying effect of gene knockout in pooled experiments with 
+\title{Derive growth-modifying effect of gene knockout in pooled experiments with
 replicate arms}
 \usage{
 degrep(guides, r0, se0, r1, se1, rt = FALSE, set = FALSE, a, b,
   hnull = 0, nse = 2, secondbest = TRUE, correctab = TRUE)
 }
 \arguments{
-\item{guides}{Character vector. Guides are assumed to start with the gene 
-name, followed by an underscore, followed by a number or sequence unique 
+\item{guides}{Character vector. Guides are assumed to start with the gene
+name, followed by an underscore, followed by a number or sequence unique
 within that gene.}
 
-\item{r0}{Numeric vector. Rate ratios of features representing straight 
+\item{r0}{Numeric vector. Rate ratios of features representing straight
 lethality.}
 
 \item{se0}{Numeric vector. Standard errors corresponding to r0.}
 
-\item{r1}{Numeric vector. Rate ratios of features representing sensitization 
+\item{r1}{Numeric vector. Rate ratios of features representing sensitization
 or synthetic lethality. Optional but required to calculate e.}
 
 \item{se1}{Numeric vector. Standard errors corresponding to r1.}
 
-\item{rt}{Numeric vector. Rate ratios of features representing lethality in 
+\item{rt}{Numeric vector. Rate ratios of features representing lethality in
 the test sample. Optional.}
 
 \item{set}{Numeric vector. Standard errors corresponding to rt.}
 
-\item{a}{Numeric. Estimated potential population doublings between time 
+\item{a}{Numeric. Estimated potential population doublings between time
 points.}
 
-\item{b}{Numeric. Estimated potential population doublings between time 
-points in test sample. Only applicable if r1 is given. If omitted, assumed 
+\item{b}{Numeric. Estimated potential population doublings between time
+points in test sample. Only applicable if r1 is given. If omitted, assumed
 equal to a.}
 
-\item{hnull}{Numeric. Null hypothesis. Growth effects of genes are tested to 
-be more extreme than this value. Setting hnull can greatly improve the 
-usefulness of p-values, and can be considered a cutoff for relevance. 
+\item{hnull}{Numeric. Null hypothesis. Growth effects of genes are tested to
+be more extreme than this value. Setting hnull can greatly improve the
+usefulness of p-values, and can be considered a cutoff for relevance.
 Default = 0}
 
-\item{nse}{Numeric. Number of standard units, used for comparing guides. See 
+\item{nse}{Numeric. Number of standard units, used for comparing guides. See
 details below. Default = 2}
 
-\item{secondbest}{Logical. If TRUE, calculate effect sizes based on the 
+\item{secondbest}{Logical. If TRUE, calculate effect sizes based on the
 second best guides of each gene as well. Default = TRUE}
 
-\item{correctab}{Logical. When \code{a != b}, it is be possible (and 
-necessary?) to mathematically correct for this difference. If you analyze 
-an experiment with unequal a and b, try both with and without correction. 
+\item{correctab}{Logical. When \code{a != b}, it is be possible (and
+necessary?) to mathematically correct for this difference. If you analyze
+an experiment with unequal a and b, try both with and without correction.
 Default = TRUE}
 }
 \value{
-Returns a list with the following (depending on input arguments): 
-  \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of 
+Returns a list with the following (depending on input arguments):
+  \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
   guides representing the gene} \item{d}{ - gene knockout effects on straight
-  lethality} \item{d2}{ - gene knockout effects on straight lethality based 
-  on the second-best guide} \item{e}{ - gene knockout effects on 
+  lethality} \item{d2}{ - gene knockout effects on straight lethality based
+  on the second-best guide} \item{e}{ - gene knockout effects on
   sensitization} \item{e2}{ - gene knockout effects on sensitization based on
-  the second-best guide} \item{de}{ - gene knockout effects on straight 
-  lethality in the test arm} \item{de2}{ - gene knockout effects on straight 
-  lethality in the test arm based on the second-best guide} \item{g}{ - 
-  estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
-  \item{j}{ - within-gene index of the second-best guide} \item{pd}{ - 
-  p-value of straight lethality} \item{pe}{ - p-value of sensitization} 
+  the second-best guide} \item{de}{ - gene knockout effects on straight
+  lethality in the test arm} \item{de2}{ - gene knockout effects on straight
+  lethality in the test arm based on the second-best guide} \item{g}{ -
+  estimated guide efficacy} \item{i}{ - within-gene index of the best guide}
+  \item{j}{ - within-gene index of the second-best guide} \item{pd}{ -
+  p-value of straight lethality} \item{pe}{ - p-value of sensitization}
   \item{pde}{ - p-value of lethality in the test arm} }
 }
 \description{
-degrep is a variant of getdeg that utilizes confidence measures of rate 
-ratios to find the "best guide". First, the median rate ratio of a group 
-(e.g. a gene) is determined. The best guide is corresponds to the most 
-extreme rate ratio with the same sign (direction) as the median, after moving
-two (or another specified number) standard (error) units toward null. See 
-details below. For more context, see \code{\link{getdeg}}
+degrep is a variant of getdeg that utilizes confidence measures of rate
+ratios to find the "best guide". First, the median rate ratio of a group
+(e.g. a gene) is determined. The best guide has the most extreme rate ratio
+with the same sign (direction) as the median, after moving two (or another
+specified number) standard (error) units toward null. See details below. For
+more context, see \code{\link{getdeg}}
 }
 \details{
-For more details on basic functionality, see \code{\link{getdeg}} 
-  documentation. The added functionality in this function hinges on the use 
-  of confidence measures of rate ratios. Rate ratios and associated errors 
-  can be derived from other sources, but I recommend using the output of 
-  \code{\link{rrep}}. As in \code{\link{getdeg}}, a single best guide is 
-  determined using all available data. But now, the confidence given by the 
+For more details on basic functionality, see \code{\link{getdeg}}
+  documentation. The added functionality in this function hinges on the use
+  of confidence measures of rate ratios. Rate ratios and associated errors
+  can be derived from other sources, but I recommend using the output of
+  \code{\link{rrep}}. As in \code{\link{getdeg}}, a single best guide is
+  determined using all available data. But now, the confidence given by the
   standard error is used to help select the best guide. Here is an example to
   illustrate. Say guide 1 has a rate ratio of -4 and a standard error of 1.2,
   while guide 2 targeting the same gene has a rate ratio of -3 and a standard
-  error of 0.5 and guide 3 and guide 4 both have little effect. When using 
+  error of 0.5 and guide 3 and guide 4 both have little effect. When using
   the default \code{nse = 2}, guide 2 scores better than guide 1, and is thus
-  designated "best guide". However, for the p-value calculation, the lowest 
+  designated "best guide". However, for the p-value calculation, the lowest
   p-value is reported, which is calculated using the rate ratio, its standard
   error, and the null hypothesis as determined by \code{hnull} and the number
   of population doublings. The p-value reported for a gene does therefore not
-  necessarily match to the best guide, and can in fact below to an outlier. 
+  necessarily match to the best guide, and can in fact below to an outlier.
   The p-values are also not corrected for multiple testing. Instead, p-values
   can easily be calculated for all guides using \code{2*pnorm(-abs(r)/se)} or
   \code{pnorm((hnull*a-abs(r))/se)}, and corrected for multiple testing using
   \code{\link{p.adjust}}.
 }
 \note{
-With these analyses, it is important to visually inspect all steps, and 
+With these analyses, it is important to visually inspect all steps, and
   preferentially to analyze a data set with several settings.
 }
 \examples{

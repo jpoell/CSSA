@@ -37,10 +37,10 @@ and returns the log2-transformed confidence limit that is closest to 0.
 }
 \details{
 The core of this function utilizes the \code{\link{poisson.test}}
-  function from the stats package, with \code{x = c(t1, t0)} and
-  \code{T = c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper
-  and lower confidence limits are log2-transformed and the value closest to 0
-  is returned. If the log2-transformed upper and lower limit have opposite
+  function from the stats package, with \code{x = c(t1, t0)} and \code{T =
+  c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper and lower
+  confidence limits are log2-transformed and the value closest to 0 is
+  returned. If the log2-transformed upper and lower limit have opposite
   signs, 0 is returned.
 }
 \note{
@@ -63,7 +63,9 @@ abline(0, 1)
 
 }
 \seealso{
-\code{\link{nestedradjust}}
+\code{\link{rrep}}, \code{\link{nestedradjust}},
+  \code{\link{getdeg}},\code{\link{oddscores}}, \code{\link{ess}},
+  \code{\link{noness}}
 }
 \author{
 Jos B. Poell

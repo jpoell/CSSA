@@ -1,44 +1,45 @@
 #' Calculate rate ratios with standard error of count data based on replicates
-#' 
-#' rrep calculates rate ratios and corresponding standard errors of features 
-#' based on the presence of replicates. The function uses the compound variance 
-#' of the rate ratio of replicates as well as the variance associated with read 
-#' depth (i.e. counts). Rate ratio and standard error are expressed as 
+#'
+#' rrep calculates rate ratios and corresponding standard errors of features
+#' based on the presence of replicates. The function uses the compound variance
+#' of the rate ratio of replicates as well as the variance associated with read
+#' depth (i.e. counts). Rate ratio and standard error are expressed as
 #' log2-values.
-#' 
-#' @param t1 Matrix or data frame, with rows representing features and columns 
+#'
+#' @param t1 Matrix or data frame, with rows representing features and columns
 #'   representing replicates of measurements at t1 (or treated).
-#' @param t0 Matrix or data frame, with rows representing features and columns 
+#' @param t0 Matrix or data frame, with rows representing features and columns
 #'   representing replicates of measurements at t0 (or untreated).
 #' @param paired Logical. Are measurements paired? Default = TRUE
-#' @param normfun Character string. Specify with which function to standardize 
+#' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
-#' @param rstat Character string. Specify whether rate ratios are calculated 
-#'   over the sum of the counts in replicates or as the mean of the log2 rate 
+#' @param rstat Character string. Specify whether rate ratios are calculated
+#'   over the sum of the counts in replicates or as the mean of the log2 rate
 #'   ratios. Default = "summed"
-#'   
-#' @details This function combines the confidence based on replicate 
-#'   measurements with the confidence based on counts (e.g. read depth). 
-#'   Utilizing replicates to assess confidence in point estimates of individual 
-#'   features is commonplace in many analyses. However, in data sets with many 
-#'   features just by chance some features will have measurements that lie very 
-#'   close together. By adding the variance based on the count data, spurious 
+#'
+#' @details This function combines the confidence based on replicate
+#'   measurements with the confidence based on counts (e.g. read depth).
+#'   Utilizing replicates to assess confidence in point estimates of individual
+#'   features is commonplace in many analyses. However, in data sets with many
+#'   features just by chance some features will have measurements that lie very
+#'   close together. By adding the variance based on the count data, spurious
 #'   findings are greatly reduced, especially when counts are low. Variance of
 #'   count data on a log2-transformed scale is approximated with the formula
-#'   1/(log(2)^2*count)
-#'   
-#' @return Returns a data frame with the log2-transformed rate ratio and 
+#'   \code{1/(log(2)^2*count)}
+#'
+#' @return Returns a data frame with the log2-transformed rate ratio and
 #'   corresponding standard error of each feature.
-#'   
-#' @note If the data contain zeros, a pseudocount of 1/replicates is added to 
+#'
+#' @note If the data contain zeros, a pseudocount of 1/replicates is added to
 #'   all counts.
-#'   
-#' @seealso \code{\link{degrep}}
-#'   
+#'
+#' @seealso \code{\link{degrep}}, \code{\link{CRISPRsim}}, \code{\link{ess}},
+#'   \code{\link{noness}}
+#'
 #' @author Jos B. Poell
-#'   
+#'
 #' @examples
 #'   set.seed(1000)
 #'   c0 <- rbind(rpois(3, 60), rpois(3, 5), rpois(3, 10000000))
@@ -50,7 +51,7 @@
 #'   c04 <- 4*c01
 #'   c14 <- 4*c11
 #'   rrep(c14,c04)
-#' 
+#'
 #' @export
 
 rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "summed") {
@@ -105,88 +106,88 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
 }
 
 
-#' Derive growth-modifying effect of gene knockout in pooled experiments with 
+#' Derive growth-modifying effect of gene knockout in pooled experiments with
 #' replicate arms
-#' 
-#' degrep is a variant of getdeg that utilizes confidence measures of rate 
-#' ratios to find the "best guide". First, the median rate ratio of a group 
-#' (e.g. a gene) is determined. The best guide is corresponds to the most 
-#' extreme rate ratio with the same sign (direction) as the median, after moving
-#' two (or another specified number) standard (error) units toward null. See 
-#' details below. For more context, see \code{\link{getdeg}}
-#' 
-#' @param guides Character vector. Guides are assumed to start with the gene 
-#'   name, followed by an underscore, followed by a number or sequence unique 
+#'
+#' degrep is a variant of getdeg that utilizes confidence measures of rate
+#' ratios to find the "best guide". First, the median rate ratio of a group
+#' (e.g. a gene) is determined. The best guide has the most extreme rate ratio
+#' with the same sign (direction) as the median, after moving two (or another
+#' specified number) standard (error) units toward null. See details below. For
+#' more context, see \code{\link{getdeg}}
+#'
+#' @param guides Character vector. Guides are assumed to start with the gene
+#'   name, followed by an underscore, followed by a number or sequence unique
 #'   within that gene.
-#' @param r0 Numeric vector. Rate ratios of features representing straight 
+#' @param r0 Numeric vector. Rate ratios of features representing straight
 #'   lethality.
 #' @param se0 Numeric vector. Standard errors corresponding to r0.
-#' @param r1 Numeric vector. Rate ratios of features representing sensitization 
+#' @param r1 Numeric vector. Rate ratios of features representing sensitization
 #'   or synthetic lethality. Optional but required to calculate e.
 #' @param se1 Numeric vector. Standard errors corresponding to r1.
-#' @param rt Numeric vector. Rate ratios of features representing lethality in 
+#' @param rt Numeric vector. Rate ratios of features representing lethality in
 #'   the test sample. Optional.
 #' @param set Numeric vector. Standard errors corresponding to rt.
-#' @param a Numeric. Estimated potential population doublings between time 
+#' @param a Numeric. Estimated potential population doublings between time
 #'   points.
-#' @param b Numeric. Estimated potential population doublings between time 
-#'   points in test sample. Only applicable if r1 is given. If omitted, assumed 
+#' @param b Numeric. Estimated potential population doublings between time
+#'   points in test sample. Only applicable if r1 is given. If omitted, assumed
 #'   equal to a.
-#' @param hnull Numeric. Null hypothesis. Growth effects of genes are tested to 
-#'   be more extreme than this value. Setting hnull can greatly improve the 
-#'   usefulness of p-values, and can be considered a cutoff for relevance. 
+#' @param hnull Numeric. Null hypothesis. Growth effects of genes are tested to
+#'   be more extreme than this value. Setting hnull can greatly improve the
+#'   usefulness of p-values, and can be considered a cutoff for relevance.
 #'   Default = 0
-#' @param nse Numeric. Number of standard units, used for comparing guides. See 
+#' @param nse Numeric. Number of standard units, used for comparing guides. See
 #'   details below. Default = 2
-#' @param secondbest Logical. If TRUE, calculate effect sizes based on the 
+#' @param secondbest Logical. If TRUE, calculate effect sizes based on the
 #'   second best guides of each gene as well. Default = TRUE
-#' @param correctab Logical. When \code{a != b}, it is be possible (and 
-#'   necessary?) to mathematically correct for this difference. If you analyze 
-#'   an experiment with unequal a and b, try both with and without correction. 
+#' @param correctab Logical. When \code{a != b}, it is be possible (and
+#'   necessary?) to mathematically correct for this difference. If you analyze
+#'   an experiment with unequal a and b, try both with and without correction.
 #'   Default = TRUE
-#'   
-#' @details For more details on basic functionality, see \code{\link{getdeg}} 
-#'   documentation. The added functionality in this function hinges on the use 
-#'   of confidence measures of rate ratios. Rate ratios and associated errors 
-#'   can be derived from other sources, but I recommend using the output of 
-#'   \code{\link{rrep}}. As in \code{\link{getdeg}}, a single best guide is 
-#'   determined using all available data. But now, the confidence given by the 
+#'
+#' @details For more details on basic functionality, see \code{\link{getdeg}}
+#'   documentation. The added functionality in this function hinges on the use
+#'   of confidence measures of rate ratios. Rate ratios and associated errors
+#'   can be derived from other sources, but I recommend using the output of
+#'   \code{\link{rrep}}. As in \code{\link{getdeg}}, a single best guide is
+#'   determined using all available data. But now, the confidence given by the
 #'   standard error is used to help select the best guide. Here is an example to
 #'   illustrate. Say guide 1 has a rate ratio of -4 and a standard error of 1.2,
 #'   while guide 2 targeting the same gene has a rate ratio of -3 and a standard
-#'   error of 0.5 and guide 3 and guide 4 both have little effect. When using 
+#'   error of 0.5 and guide 3 and guide 4 both have little effect. When using
 #'   the default \code{nse = 2}, guide 2 scores better than guide 1, and is thus
-#'   designated "best guide". However, for the p-value calculation, the lowest 
+#'   designated "best guide". However, for the p-value calculation, the lowest
 #'   p-value is reported, which is calculated using the rate ratio, its standard
 #'   error, and the null hypothesis as determined by \code{hnull} and the number
 #'   of population doublings. The p-value reported for a gene does therefore not
-#'   necessarily match to the best guide, and can in fact below to an outlier. 
+#'   necessarily match to the best guide, and can in fact below to an outlier.
 #'   The p-values are also not corrected for multiple testing. Instead, p-values
 #'   can easily be calculated for all guides using \code{2*pnorm(-abs(r)/se)} or
 #'   \code{pnorm((hnull*a-abs(r))/se)}, and corrected for multiple testing using
 #'   \code{\link{p.adjust}}.
-#'   
-#' @return Returns a list with the following (depending on input arguments): 
-#'   \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of 
+#'
+#' @return Returns a list with the following (depending on input arguments):
+#'   \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
 #'   guides representing the gene} \item{d}{ - gene knockout effects on straight
-#'   lethality} \item{d2}{ - gene knockout effects on straight lethality based 
-#'   on the second-best guide} \item{e}{ - gene knockout effects on 
+#'   lethality} \item{d2}{ - gene knockout effects on straight lethality based
+#'   on the second-best guide} \item{e}{ - gene knockout effects on
 #'   sensitization} \item{e2}{ - gene knockout effects on sensitization based on
-#'   the second-best guide} \item{de}{ - gene knockout effects on straight 
-#'   lethality in the test arm} \item{de2}{ - gene knockout effects on straight 
-#'   lethality in the test arm based on the second-best guide} \item{g}{ - 
-#'   estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
-#'   \item{j}{ - within-gene index of the second-best guide} \item{pd}{ - 
-#'   p-value of straight lethality} \item{pe}{ - p-value of sensitization} 
+#'   the second-best guide} \item{de}{ - gene knockout effects on straight
+#'   lethality in the test arm} \item{de2}{ - gene knockout effects on straight
+#'   lethality in the test arm based on the second-best guide} \item{g}{ -
+#'   estimated guide efficacy} \item{i}{ - within-gene index of the best guide}
+#'   \item{j}{ - within-gene index of the second-best guide} \item{pd}{ -
+#'   p-value of straight lethality} \item{pe}{ - p-value of sensitization}
 #'   \item{pde}{ - p-value of lethality in the test arm} }
-#'   
-#' @note With these analyses, it is important to visually inspect all steps, and 
+#'
+#' @note With these analyses, it is important to visually inspect all steps, and
 #'   preferentially to analyze a data set with several settings.
-#'   
+#'
 #' @seealso \code{\link{getdeg}}, \code{\link{rrep}}
-#'   
+#'
 #' @author Jos B. Poell
-#'   
+#'
 #' @examples
 #' ut1 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 10, repseed = 1)
 #' tr1 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 10, repseed = 2)
@@ -202,7 +203,7 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
 #' reale <- rle(tr1$e)$values
 #' plot(reald, deg$d)
 #' plot(reale, deg$e)
-#' 
+#'
 #' @export
 
 degrep <- function(guides, r0, se0, r1, se1, rt = FALSE, set = FALSE, 
