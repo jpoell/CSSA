@@ -24,7 +24,7 @@ geneodds combines the odds of all guides per gene.
 In a similar fashion as \code{\link{sumZ}} and \code{\link{getdeg}},
   this function combines odds of all guides belonging to a gene for all genes
   in the data set. Keep in mind that guides have to be sorted by gene name,
-  and there value is expected to start with the gene name, number or symbol,
+  and their value is expected to start with the gene name, number or symbol,
   followed by an underscore. Odds are combined by multiplying or adding log
   odds, after which the odds are corrected for being composed of multiple
   odds. The code in the example shows an example with uniformly distributed
