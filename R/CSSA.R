@@ -557,15 +557,15 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
 #' @param log Logical or numeric. Specify whether to log-transform the rate
-#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
+#'   ratio, and with what base. If TRUE, uses natural logarithm. Default = 2
 #' @param belowxreads Logical or numeric. Set threshold above which the
 #'   unadjusted rate ratio is returned. Default = FALSE
 #'
 #' @details The core of this function utilizes the \code{\link{poisson.test}}
 #'   function from the stats package, with \code{x = c(t1, t0)} and \code{T =
 #'   c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper and lower
-#'   confidence limits are log2-transformed and the value closest to 0 is
-#'   returned. If the log2-transformed upper and lower limit have opposite
+#'   confidence limits are log-transformed and the value closest to 0 is
+#'   returned. If the log-transformed upper and lower limit have opposite
 #'   signs, 0 is returned.
 #'
 #' @return Returns the (log2-transformed) adjusted rate ratio.
@@ -596,7 +596,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' @export
 
 radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
-                    log = TRUE, belowxreads = FALSE) {
+                    log = 2, belowxreads = FALSE) {
   fun <- get(normfun)
   if (!missing(normsubset)) {
     sr0 <- fun(t0[normsubset])
@@ -614,29 +614,29 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
       } else if (log != TRUE) {
         return(log((t1/sr1)/(t0/sr0), log))
       } else {
-        # returning unadjusted log2-transformed rate ratio
-        return(log((t1/sr1)/(t0/sr0), 2))
+        return(log((t1/sr1)/(t0/sr0)))
       }
     } else {
       if (conf.level != FALSE) {
-        # log2-transformed upper and lower limit of given confidence interval
-        log2ci <- log(poisson.test(x = c(t1, t0),
+        # log-transformed upper and lower limit of given confidence interval
+        logci <- log(poisson.test(x = c(t1, t0),
                                    T = c(sr1, sr0),
-                                   conf.level = conf.level)$conf.int, 2)
+                                   conf.level = conf.level)$conf.int)
         # when confidence interval contains 0, log2 rate ratio becomes 0
-        if(prod(log2ci) > 0) {log2r  <- log2ci[which.min(abs(log2ci))]} else {log2r <- 0}
+        if(prod(logci) > 0) {logr  <- logci[which.min(abs(logci))]} else {logr <- 0}
       } else {
         # basically the same as belowxreads
-        log2r <- log(poisson.test(x = c(t1, t0),
-                                  T = c(sr1, sr0))$estimate, 2)
+        logr <- log(poisson.test(x = c(t1, t0),
+                                  T = c(sr1, sr0))$estimate)
       }
       if(log == FALSE) {
-        r <- 2^log2r
+        r <- exp(logr)
         return(r)
-      } else if (log != TRUE) {
-        r <- 2^log2r
-        return(log(r, log))
-      } else {return(log2r)}
+      } else if (log == TRUE) {
+        return(logr)
+      } else {
+        return(logr/log(log))
+      }
     }
   }, t1, t0)
   return(r)
@@ -658,7 +658,7 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
 #' @param log Logical. Specify whether the rate ratio should be
-#'   log2-transformed. If TRUE, uses log2. Default = TRUE
+#'   log-transformed. If TRUE, uses natural logarithm. Default = 2
 #' @param belowxreads Logical or numeric. Set threshold above which the
 #'   unadjusted rate ratio is returned. Default = FALSE
 #'
@@ -687,7 +687,7 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #' @export
 
 nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum", 
-                          normsubset, log = TRUE, belowxreads = FALSE) {
+                          normsubset, log = 2, belowxreads = FALSE) {
   fun <- get(normfun)
   if (!missing(normsubset)) {
     srmt1 <- fun(mt1[normsubset])
@@ -713,7 +713,7 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
         return(log(srr*(mt1/wt1)/(mt0/wt0), log))
       } else {
         # return unadjusted log2-transformed rate ratio
-        return(log(srr*(mt1/wt1)/(mt0/wt0), 2))
+        return(log(srr*(mt1/wt1)/(mt0/wt0)))
       }
     } else {
       srr1 <- srmt1/srwt1
@@ -726,26 +726,27 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
       if (ci0[2] == Inf) {ci0[2] <- max(100, ci0[1]*100)}
       # calculate the confidence interval at t1 with the lower and higher
       # estimates of the rate ratio at t0
-      log2ci1 <- log2(poisson.test(x = c(mt1, wt1),
+      logci1 <- log(poisson.test(x = c(mt1, wt1),
                                    T = c(ci0[1]*srr1, 1),
                                    conf.level = conf.level)$conf.int)
-      if(prod(log2ci1) > 0) {log2r1  <- log2ci1[which.min(abs(log2ci1))]} else {log2r1 <- 0}
+      if(prod(logci1) > 0) {logr1  <- logci1[which.min(abs(logci1))]} else {logr1 <- 0}
   
-      log2ci2 <- log2(poisson.test(x = c(mt1, wt1),
+      logci2 <- log(poisson.test(x = c(mt1, wt1),
                                    T = c(ci0[2]*srr1, 1),
                                    conf.level = conf.level)$conf.int)
-      if(prod(log2ci2) > 0) {log2r2  <- log2ci2[which.min(abs(log2ci2))]} else {log2r2 <- 0}
+      if(prod(logci2) > 0) {logr2  <- logci2[which.min(abs(logci2))]} else {logr2 <- 0}
   
-      # return the log2-transformed rate ratio that is closest to 0
-      log2r <- c(log2r1, log2r2)[which.min(c(abs(log2r1), abs(log2r2)))]
+      # return the log-transformed rate ratio that is closest to 0
+      logr <- c(logr1, logr2)[which.min(c(abs(logr1), abs(logr2)))]
   
       if(log == FALSE) {
-        r <- 2^log2r
+        r <- exp(logr)
         return(r)
-      } else if (log != TRUE) {
-        r <- 2^log2r
-        return(log(r, log))
-      } else {return(log2r)}
+      } else if (log == TRUE) {
+        return(logr)
+      } else {
+        return(logr/log(log))
+      }
     }
   }, mt1, wt1, mt0, wt0)
   return(r)
@@ -763,7 +764,7 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
 #' @param n Numeric. Specify how much is added to each value before calculating
 #'   rate ratios. Default = 5
 #' @param log Logical or numeric. Specify whether to log-transform the rate
-#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
+#'   ratio, and with what base. If TRUE, uses natural logarithm. Default = 2
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
@@ -780,7 +781,7 @@ nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum"
 #'
 #' @export
 
-jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
+jar <- function(t1, t0, n = 5, log = 2, normfun = "sum", normsubset) {
   t1 <- t1 + n
   t0 <- t0 + n
   fun <- get(normfun)
@@ -791,7 +792,7 @@ jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
     r <- (t1/fun(t1))/(t0/fun(t0))
   }
   if (log == TRUE) {
-    r <- log2(r)
+    r <- log(r)
   } else if (log != FALSE) {
     r <- log(r, log)
   }
@@ -812,7 +813,7 @@ jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
 #' @param n Numeric. Specify how much is added to each value before calculating
 #'   rate ratios of rate ratios. Default = 5
 #' @param log Logical or numeric. Specify whether to log-transform the rate
-#'   ratio, and with what base. If TRUE, uses log2. Default = TRUE
+#'   ratio, and with what base. If TRUE, uses natural logarithm. Default = 2
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
@@ -829,7 +830,7 @@ jar <- function(t1, t0, n = 5, log = TRUE, normfun = "sum", normsubset) {
 #'
 #' @export
 
-doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
+doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = 2, normfun = "sum",
                       normsubset) {
   mt1 <- mt1 + n
   wt1 <- wt1 + n
@@ -843,7 +844,7 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
     r <- ((mt1/fun(mt1))*(wt0/fun(wt0))) / ((mt0/fun(mt0))*(wt1/fun(wt1)))
   }
   if (log == TRUE) {
-    r <- log2(r)
+    r <- log(r)
   } else if (log != FALSE) {
     r <- log(r, log)
   }
@@ -874,7 +875,7 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
 #'
 #' @author Jos B. Poell
 #'
-#' @seealso \code{\link{sumZ}}
+#' @seealso \code{\link{sumZ}}, \code{\link{ess}}, \code{\link{noness}}
 #'
 #' @export
 
@@ -950,62 +951,63 @@ sumZ <- function(guides, Z) {
 # luck!
 
 #' Derive growth-modifying effect of gene knockout in pooled experiments
-#' 
-#' getdeg was specifically designed to derive the effect of gene knockout on 
-#' cell growth based on results from pooled CRISPR-Cas9 experiments. Using a 
+#'
+#' getdeg was specifically designed to derive the effect of gene knockout on
+#' cell growth based on results from pooled CRISPR-Cas9 experiments. Using a
 #' combination of both rate ratios and (assumed or estimated) maximum population
-#' doublings, the straight lethality and optionally sensitization / synthetic 
-#' lethality are calculated based on the "most efficacious guide targeting the 
-#' gene", i.e. the feature that shows the most extreme rate ratio change within 
+#' doublings, the straight lethality and optionally sensitization / synthetic
+#' lethality are calculated based on the "most efficacious guide targeting the
+#' gene", i.e. the feature that shows the most extreme rate ratio change within
 #' its group.
-#' 
-#' @param guides Character vector. Guides are assumed to start with the gene 
-#'   name, followed by an underscore, followed by a number or sequence unique 
+#'
+#' @param guides Character vector. Guides are assumed to start with the gene
+#'   name, followed by an underscore, followed by a number or sequence unique
 #'   within that gene.
-#' @param r0 Numeric vector. Rate ratios of features representing straight 
-#'   lethality.
-#' @param r1 Numeric vector. Rate ratios of features representing sensitization 
-#'   or synthetic lethality. Optional but required to calculate e.
-#' @param rt Numeric vector. Rate ratios of features representing lethality in 
-#'   the test sample. Optional.
-#' @param a Numeric. Estimated potential population doublings between time 
+#' @param r0 Numeric vector. Log2-transformed rate ratios of features
+#'   representing straight lethality.
+#' @param r1 Numeric vector. Log2-transformed rate ratios of features
+#'   representing sensitization or synthetic lethality. Optional but required to
+#'   calculate e.
+#' @param rt Numeric vector. Log2-transformed rate ratios of features
+#'   representing lethality in the test sample. Optional.
+#' @param a Numeric. Estimated potential population doublings between time
 #'   points.
-#' @param b Numeric. Estimated potential population doublings between time 
-#'   points in test sample. Only applicable if r1 is given. If omitted, assumed 
+#' @param b Numeric. Estimated potential population doublings between time
+#'   points in test sample. Only applicable if r1 is given. If omitted, assumed
 #'   equal to a.
-#' @param secondbest Logical. If TRUE, calculate effect sizes based on the 
+#' @param secondbest Logical. If TRUE, calculate effect sizes based on the
 #'   second best guides of each gene as well. Default = TRUE
-#' @param skipcutoff Logical or numeric. If specified, do no calculate effect 
-#'   sizes of genes with maximum absolute rate ratios below this cut-off. 
+#' @param skipcutoff Logical or numeric. If specified, do no calculate effect
+#'   sizes of genes with maximum absolute rate ratios below this cut-off.
 #'   Default = FALSE
-#' @param correctab Logical. When \code{a != b}, it is be possible (and 
-#'   necessary?) to mathematically correct for this difference. If you analyze 
-#'   an experiment with unequal a and b, try both with and without correction 
+#' @param correctab Logical. When \code{a != b}, it is be possible (and
+#'   necessary?) to mathematically correct for this difference. If you analyze
+#'   an experiment with unequal a and b, try both with and without correction
 #'   and read the notes below. Default = TRUE
-#'   
-#' @details getdeg derives gene knockout effect sizes based on rate ratios. 
-#'   These in turn are derived from sequencing coverage of the features (e.g. 
-#'   guides in a CRISPR-bases screen). The function expects log2-transformed 
-#'   rate ratios. It also requires an estimate of potential population 
-#'   doublings, basically meaning that cells without successful knockout (or 
-#'   knockout of a gene without any growth-modifying effect) would have divided 
-#'   this many times. An example: the log2 rate ratio r0 of a guide between t1 
-#'   and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was 
-#'   successful in all cells (g = 1), the effect of the corresponding gene 
-#'   knockout is d = r/a = -0.5. The function assumes the guide with the most 
-#'   extreme r with the same direction as the median r of all guides targeting 
-#'   that gene has this efficacy of 1, and then calculates g for the other 
-#'   guides. Things get more interesting when there is also a treatment effect. 
-#'   In this case it compares rate ratios of treated versus untreated and t1 
-#'   versus t0. From these it will decide which is the best guide and calculate 
+#'
+#' @details getdeg derives gene knockout effect sizes based on rate ratios.
+#'   These in turn are derived from sequencing coverage of the features (e.g.
+#'   guides in a CRISPR-bases screen). The function expects log2-transformed
+#'   rate ratios. It also requires an estimate of potential population
+#'   doublings, basically meaning that cells without successful knockout (or
+#'   knockout of a gene without any growth-modifying effect) would have divided
+#'   this many times. An example: the log2 rate ratio r0 of a guide between t1
+#'   and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was
+#'   successful in all cells (g = 1), the effect of the corresponding gene
+#'   knockout is d = r/a = -0.5. The function assumes the guide with the most
+#'   extreme r with the same direction as the median r of all guides targeting
+#'   that gene has this efficacy of 1, and then calculates g for the other
+#'   guides. Things get more interesting when there is also a treatment effect.
+#'   In this case it compares rate ratios of treated versus untreated and t1
+#'   versus t0. From these it will decide which is the best guide and calculate
 #'   both straight lethal effect d and sensitizing effect e. Although this will
 #'   generally improve robustness, it is always a good idea to compare the
 #'   results with the analysis of a single rate ratio measure. Optionally, but
 #'   by default, the effects based on the second-best guide are also calculated.
-#'   This function does not do anything in terms of statistics. It expects 
+#'   This function does not do anything in terms of statistics. It expects
 #'   precautions are taken in the calculation of rate ratios!
-#'   
-#' @return Returns a list with the following (depending on input arguments): 
+#'
+#' @return Returns a list with the following (depending on input arguments):
 #'   \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
 #'   guides representing the gene} \item{d}{ - gene knockout effects on straight
 #'   lethality} \item{d2}{ - gene knockout effects on straight lethality based
@@ -1014,22 +1016,22 @@ sumZ <- function(guides, Z) {
 #'   the second-best guide} \item{de}{ - gene knockout effects on straight
 #'   lethality in the test arm} \item{de2}{ - gene knockout effects on straight
 #'   lethality in the test arm based on the second-best guide} \item{g}{ -
-#'   estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
+#'   estimated guide efficacy} \item{i}{ - within-gene index of the best guide}
 #'   \item{j}{ - within-gene index of the second-best guide} }
-#'   
+#'
 #' @note When comparing two experimental arms that have had different numbers of
-#'   population doublings, things get quirky. I have put the mathematical 
-#'   correction in the function, which you can turn off with \code{correctab = 
-#'   FALSE}. I have noticed that correction gives straight lethal genes 
-#'   artificially high treatment resistance (positive e). But when I do not 
+#'   population doublings, things get quirky. I have put the mathematical
+#'   correction in the function, which you can turn off with \code{correctab =
+#'   FALSE}. I have noticed that correction gives straight lethal genes
+#'   artificially high treatment resistance (positive e). But when I do not
 #'   correct, I see a downward skew here. In case of a resistance screen, it may
 #'   be more useful to look at the uncorrected variant. If you are interested in
 #'   picking up sensitizers, I would recommend correcting.
-#'   
+#'
 #' @seealso \code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}
-#'   
+#'
 #' @author Jos B. Poell
-#'   
+#'
 #' @examples
 #' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1, perfectseq = TRUE)
 #' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1, perfectseq = TRUE)
@@ -1041,7 +1043,7 @@ sumZ <- function(guides, Z) {
 #' reale <- rle(tr$e)$values
 #' plot(reald, deg$d)
 #' plot(reale, deg$e)
-#' 
+#'
 #' @export
 
 getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,

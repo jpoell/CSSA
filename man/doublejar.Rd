@@ -4,7 +4,7 @@
 \alias{doublejar}
 \title{Rate ratios of rate ratios after adding an artificial number to all features}
 \usage{
-doublejar(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
+doublejar(mt1, wt1, mt0, wt0, n = 5, log = 2, normfun = "sum",
   normsubset)
 }
 \arguments{
@@ -20,7 +20,7 @@ doublejar(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
 rate ratios of rate ratios. Default = 5}
 
 \item{log}{Logical or numeric. Specify whether to log-transform the rate
-ratio, and with what base. If TRUE, uses log2. Default = TRUE}
+ratio, and with what base. If TRUE, uses natural logarithm. Default = 2}
 
 \item{normfun}{Character string. Specify with which function to standardize
 the data. Default = "sum"}

@@ -5,7 +5,7 @@
 \title{Calculate rate ratios restricted by confidence level}
 \usage{
 radjust(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
-  log = TRUE, belowxreads = FALSE)
+  log = 2, belowxreads = FALSE)
 }
 \arguments{
 \item{t1}{Integer vector. Raw sequencing reads in test sample}
@@ -22,7 +22,7 @@ the data. Default = "sum"}
 be used in standardization}
 
 \item{log}{Logical or numeric. Specify whether to log-transform the rate
-ratio, and with what base. If TRUE, uses log2. Default = TRUE}
+ratio, and with what base. If TRUE, uses natural logarithm. Default = 2}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}
@@ -39,8 +39,8 @@ and returns the log2-transformed confidence limit that is closest to 0.
 The core of this function utilizes the \code{\link{poisson.test}}
   function from the stats package, with \code{x = c(t1, t0)} and \code{T =
   c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper and lower
-  confidence limits are log2-transformed and the value closest to 0 is
-  returned. If the log2-transformed upper and lower limit have opposite
+  confidence limits are log-transformed and the value closest to 0 is
+  returned. If the log-transformed upper and lower limit have opposite
   signs, 0 is returned.
 }
 \note{

@@ -5,7 +5,7 @@
 \title{Calculate rate ratios of rate ratios restricted by confidence level}
 \usage{
 nestedradjust(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum",
-  normsubset, log = TRUE, belowxreads = FALSE)
+  normsubset, log = 2, belowxreads = FALSE)
 }
 \arguments{
 \item{mt1}{Integer vector. Raw sequencing reads in test sample, t1}
@@ -26,7 +26,7 @@ the data. Default = "sum"}
 be used in standardization}
 
 \item{log}{Logical. Specify whether the rate ratio should be
-log2-transformed. If TRUE, uses log2. Default = TRUE}
+log-transformed. If TRUE, uses natural logarithm. Default = 2}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
 unadjusted rate ratio is returned. Default = FALSE}

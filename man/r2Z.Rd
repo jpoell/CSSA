@@ -34,7 +34,7 @@ Functions in the CSSA package by default return log-transformed rate
   ratios. These can directly be used as input for this function.
 }
 \seealso{
-\code{\link{sumZ}}
+\code{\link{sumZ}}, \code{\link{ess}}, \code{\link{noness}}
 }
 \author{
 Jos B. Poell

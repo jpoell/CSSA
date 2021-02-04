@@ -119,14 +119,15 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
 #' @param guides Character vector. Guides are assumed to start with the gene
 #'   name, followed by an underscore, followed by a number or sequence unique
 #'   within that gene.
-#' @param r0 Numeric vector. Rate ratios of features representing straight
-#'   lethality.
+#' @param r0 Numeric vector. Log2-transformed rate ratios of features
+#'   representing straight lethality.
 #' @param se0 Numeric vector. Standard errors corresponding to r0.
-#' @param r1 Numeric vector. Rate ratios of features representing sensitization
-#'   or synthetic lethality. Optional but required to calculate e.
+#' @param r1 Numeric vector. Log2-transformed rate ratios of features
+#'   representing sensitization or synthetic lethality. Optional but required to
+#'   calculate e.
 #' @param se1 Numeric vector. Standard errors corresponding to r1.
-#' @param rt Numeric vector. Rate ratios of features representing lethality in
-#'   the test sample. Optional.
+#' @param rt Numeric vector. Log2-transformed rate ratios of features
+#'   representing lethality in the test sample. Optional.
 #' @param set Numeric vector. Standard errors corresponding to rt.
 #' @param a Numeric. Estimated potential population doublings between time
 #'   points.
@@ -189,12 +190,18 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
 #' @author Jos B. Poell
 #'
 #' @examples
-#' ut1 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 10, repseed = 1, perfectseq = TRUE)
-#' tr1 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 10, repseed = 2, perfectseq = TRUE)
-#' ut2 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 20, repseed = 3, perfectseq = TRUE)
-#' tr2 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 20, repseed = 4, perfectseq = TRUE)
-#' ut3 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 30, repseed = 5, perfectseq = TRUE)
-#' tr3 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 30, repseed = 6, perfectseq = TRUE)
+#' ut1 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 10, 
+#'                  repseed = 1, perfectseq = TRUE)
+#' tr1 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 10, 
+#'                  repseed = 2, perfectseq = TRUE)
+#' ut2 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 20, 
+#'                  repseed = 3, perfectseq = TRUE)
+#' tr2 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 20, 
+#'                  repseed = 4, perfectseq = TRUE)
+#' ut3 <- CRISPRsim(1000, 4, a = c(3,3), allseed = 100, t0seed = 30, 
+#'                  repseed = 5, perfectseq = TRUE)
+#' tr3 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 30, 
+#'                  repseed = 6, perfectseq = TRUE)
 #' cgi <- tr1$d > -0.05 & tr1$d < 0.05 & tr1$e > -0.05 & tr1$e < 0.05
 #' rr0 <- rrep(cbind(ut1$t6, ut2$t6, ut3$t6), cbind(ut1$t0, ut2$t0, ut3$t0), normsubset = cgi)
 #' rr1 <- rrep(cbind(tr1$t6, tr2$t6, tr3$t6), cbind(ut1$t6, ut2$t6, ut3$t6), normsubset = cgi)

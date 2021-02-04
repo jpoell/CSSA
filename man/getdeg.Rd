@@ -8,40 +8,41 @@ getdeg(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
   skipcutoff = FALSE, correctab = TRUE)
 }
 \arguments{
-\item{guides}{Character vector. Guides are assumed to start with the gene 
-name, followed by an underscore, followed by a number or sequence unique 
+\item{guides}{Character vector. Guides are assumed to start with the gene
+name, followed by an underscore, followed by a number or sequence unique
 within that gene.}
 
-\item{r0}{Numeric vector. Rate ratios of features representing straight 
-lethality.}
+\item{r0}{Numeric vector. Log2-transformed rate ratios of features
+representing straight lethality.}
 
-\item{r1}{Numeric vector. Rate ratios of features representing sensitization 
-or synthetic lethality. Optional but required to calculate e.}
+\item{r1}{Numeric vector. Log2-transformed rate ratios of features
+representing sensitization or synthetic lethality. Optional but required to
+calculate e.}
 
-\item{rt}{Numeric vector. Rate ratios of features representing lethality in 
-the test sample. Optional.}
+\item{rt}{Numeric vector. Log2-transformed rate ratios of features
+representing lethality in the test sample. Optional.}
 
-\item{a}{Numeric. Estimated potential population doublings between time 
+\item{a}{Numeric. Estimated potential population doublings between time
 points.}
 
-\item{b}{Numeric. Estimated potential population doublings between time 
-points in test sample. Only applicable if r1 is given. If omitted, assumed 
+\item{b}{Numeric. Estimated potential population doublings between time
+points in test sample. Only applicable if r1 is given. If omitted, assumed
 equal to a.}
 
-\item{secondbest}{Logical. If TRUE, calculate effect sizes based on the 
+\item{secondbest}{Logical. If TRUE, calculate effect sizes based on the
 second best guides of each gene as well. Default = TRUE}
 
-\item{skipcutoff}{Logical or numeric. If specified, do no calculate effect 
-sizes of genes with maximum absolute rate ratios below this cut-off. 
+\item{skipcutoff}{Logical or numeric. If specified, do no calculate effect
+sizes of genes with maximum absolute rate ratios below this cut-off.
 Default = FALSE}
 
-\item{correctab}{Logical. When \code{a != b}, it is be possible (and 
-necessary?) to mathematically correct for this difference. If you analyze 
-an experiment with unequal a and b, try both with and without correction 
+\item{correctab}{Logical. When \code{a != b}, it is be possible (and
+necessary?) to mathematically correct for this difference. If you analyze
+an experiment with unequal a and b, try both with and without correction
 and read the notes below. Default = TRUE}
 }
 \value{
-Returns a list with the following (depending on input arguments): 
+Returns a list with the following (depending on input arguments):
   \itemize{ \item{genes}{ - list of all gene symbols} \item{n}{ - number of
   guides representing the gene} \item{d}{ - gene knockout effects on straight
   lethality} \item{d2}{ - gene knockout effects on straight lethality based
@@ -50,47 +51,47 @@ Returns a list with the following (depending on input arguments):
   the second-best guide} \item{de}{ - gene knockout effects on straight
   lethality in the test arm} \item{de2}{ - gene knockout effects on straight
   lethality in the test arm based on the second-best guide} \item{g}{ -
-  estimated guide efficacy} \item{i}{ - within-gene index of the best guide} 
+  estimated guide efficacy} \item{i}{ - within-gene index of the best guide}
   \item{j}{ - within-gene index of the second-best guide} }
 }
 \description{
-getdeg was specifically designed to derive the effect of gene knockout on 
-cell growth based on results from pooled CRISPR-Cas9 experiments. Using a 
+getdeg was specifically designed to derive the effect of gene knockout on
+cell growth based on results from pooled CRISPR-Cas9 experiments. Using a
 combination of both rate ratios and (assumed or estimated) maximum population
-doublings, the straight lethality and optionally sensitization / synthetic 
-lethality are calculated based on the "most efficacious guide targeting the 
-gene", i.e. the feature that shows the most extreme rate ratio change within 
+doublings, the straight lethality and optionally sensitization / synthetic
+lethality are calculated based on the "most efficacious guide targeting the
+gene", i.e. the feature that shows the most extreme rate ratio change within
 its group.
 }
 \details{
-getdeg derives gene knockout effect sizes based on rate ratios. 
-  These in turn are derived from sequencing coverage of the features (e.g. 
-  guides in a CRISPR-bases screen). The function expects log2-transformed 
-  rate ratios. It also requires an estimate of potential population 
-  doublings, basically meaning that cells without successful knockout (or 
-  knockout of a gene without any growth-modifying effect) would have divided 
-  this many times. An example: the log2 rate ratio r0 of a guide between t1 
-  and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was 
-  successful in all cells (g = 1), the effect of the corresponding gene 
-  knockout is d = r/a = -0.5. The function assumes the guide with the most 
-  extreme r with the same direction as the median r of all guides targeting 
-  that gene has this efficacy of 1, and then calculates g for the other 
-  guides. Things get more interesting when there is also a treatment effect. 
-  In this case it compares rate ratios of treated versus untreated and t1 
-  versus t0. From these it will decide which is the best guide and calculate 
+getdeg derives gene knockout effect sizes based on rate ratios.
+  These in turn are derived from sequencing coverage of the features (e.g.
+  guides in a CRISPR-bases screen). The function expects log2-transformed
+  rate ratios. It also requires an estimate of potential population
+  doublings, basically meaning that cells without successful knockout (or
+  knockout of a gene without any growth-modifying effect) would have divided
+  this many times. An example: the log2 rate ratio r0 of a guide between t1
+  and t0 is -3, and the screen encompassed a = 6 doublings. If the guide was
+  successful in all cells (g = 1), the effect of the corresponding gene
+  knockout is d = r/a = -0.5. The function assumes the guide with the most
+  extreme r with the same direction as the median r of all guides targeting
+  that gene has this efficacy of 1, and then calculates g for the other
+  guides. Things get more interesting when there is also a treatment effect.
+  In this case it compares rate ratios of treated versus untreated and t1
+  versus t0. From these it will decide which is the best guide and calculate
   both straight lethal effect d and sensitizing effect e. Although this will
   generally improve robustness, it is always a good idea to compare the
   results with the analysis of a single rate ratio measure. Optionally, but
   by default, the effects based on the second-best guide are also calculated.
-  This function does not do anything in terms of statistics. It expects 
+  This function does not do anything in terms of statistics. It expects
   precautions are taken in the calculation of rate ratios!
 }
 \note{
 When comparing two experimental arms that have had different numbers of
-  population doublings, things get quirky. I have put the mathematical 
-  correction in the function, which you can turn off with \code{correctab = 
-  FALSE}. I have noticed that correction gives straight lethal genes 
-  artificially high treatment resistance (positive e). But when I do not 
+  population doublings, things get quirky. I have put the mathematical
+  correction in the function, which you can turn off with \code{correctab =
+  FALSE}. I have noticed that correction gives straight lethal genes
+  artificially high treatment resistance (positive e). But when I do not
   correct, I see a downward skew here. In case of a resistance screen, it may
   be more useful to look at the uncorrected variant. If you are interested in
   picking up sensitizers, I would recommend correcting.
