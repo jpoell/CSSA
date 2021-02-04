@@ -24,13 +24,13 @@ Z-values can be based on the entire population, but also on a
   population of control genes. See examples below
 }
 \examples{
-ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1)
-tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1)
-cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
+ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1, perfectsampling = TRUE)
+tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1, perfectsampling = TRUE)
+cgi <- which(tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05)
 r0 <- jar(ut$t6, ut$t0)
 r1 <- jar(tr$t6, ut$t6)
-Z0 <- (r0-mean(r0[cgi]))/sd(r0[cgi])
-Z1 <- (r1-mean(r1[cgi]))/sd(r1[cgi])
+Z0 <- r2Z(r0, normsubset = cgi)
+Z1 <- r2Z(r1, normsubset = cgi)
 sumZ0 <- sumZ(tr$guides, Z0)
 sumZ1 <- sumZ(tr$guides, Z1)
 reald <- rle(tr$d)$values
@@ -40,7 +40,7 @@ plot(reale, sumZ1)
 
 }
 \seealso{
-\code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}
+\code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}, \code{\link{r2Z}}
 }
 \author{
 Jos B. Poell

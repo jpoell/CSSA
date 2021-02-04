@@ -48,10 +48,11 @@ The basic functionality is similar to \code{\link{radjust}}. The
   returned. It therefore estimates a conservative rate ratio.
 }
 \examples{
-wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2)
+wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2, perfectseq = TRUE)
 mt <- CRISPRsim(genes = 10, guides = 4, a = 3, e = TRUE, f = jitter(wt$f),
-                allseed = 1, repseed = 2)
-nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
+                allseed = 1, repseed = 2, perfectseq = TRUE)
+r <- nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
+plot(mt$e, r)
 
 }
 \seealso{

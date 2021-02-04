@@ -49,8 +49,8 @@ If conf.level is set to 0, it will be interpreted as FALSE. This is
   instead of giving an error.
 }
 \examples{
-ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1)
-tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1)
+ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1, perfectseq = TRUE)
+tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1, perfectseq = TRUE)
 cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
 r0 <- radjust(ut$t3, ut$t0, belowxreads = 300, normsubset = cgi)
 r1 <- radjust(tr$t3, ut$t3, belowxreads = 300, normsubset = cgi)

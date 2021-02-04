@@ -96,8 +96,8 @@ When comparing two experimental arms that have had different numbers of
   picking up sensitizers, I would recommend correcting.
 }
 \examples{
-ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1)
-tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1)
+ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1, perfectseq = TRUE)
+tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1, perfectseq = TRUE)
 cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
 r0 <- jar(ut$t6, ut$t0, normsubset = cgi)
 r1 <- jar(tr$t6, ut$t6, normsubset = cgi)

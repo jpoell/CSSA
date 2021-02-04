@@ -17,6 +17,7 @@
 #' \item{\code{\link{nestedradjust}}}{Calculate rate ratios of rate ratios restricted by confidence level}
 #' \item{\code{\link{jar}}}{Rate ratios after adding an artificial number to all features}
 #' \item{\code{\link{doublejar}}}{Rate ratios of rate ratios after adding an artificial number to all features}
+#' \item{\code{\link{r2Z}}}{Convert rate ratios to Z-values}
 #' \item{\code{\link{sumZ}}}{Calculate corrected summed Z-values per gene}
 #' \item{\code{\link{getdeg}}}{Derive growth-modifying effect of gene knockout in pooled experiments}
 #' \item{\code{\link{ess}}}{Get a list of essential genes or corresponding indices in the data set}
@@ -29,7 +30,7 @@
 #' @author Jos B. Poell
 #' 
 #' @importFrom methods is
-#' @importFrom stats median p.adjust pnorm poisson.test rbinom rnorm runif sd
+#' @importFrom stats median p.adjust pnorm poisson.test rbinom rnorm runif sd mad
 #' @importFrom utils data head tail write.table
 #' @docType package
 #' @name CSSA-package
@@ -580,8 +581,8 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' @author Jos B. Poell
 #'
 #' @examples
-#' ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1)
-#' tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1)
+#' ut <- CRISPRsim(200, 4, a = c(3,3), allseed = 1, perfectseq = TRUE)
+#' tr <- CRISPRsim(200, 4, a = c(3,3), e = TRUE, allseed = 1, perfectseq = TRUE)
 #' cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
 #' r0 <- radjust(ut$t3, ut$t0, belowxreads = 300, normsubset = cgi)
 #' r1 <- radjust(tr$t3, ut$t3, belowxreads = 300, normsubset = cgi)
@@ -677,10 +678,11 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #' @author Jos B. Poell
 #'
 #' @examples
-#' wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2)
+#' wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2, perfectseq = TRUE)
 #' mt <- CRISPRsim(genes = 10, guides = 4, a = 3, e = TRUE, f = jitter(wt$f),
-#'                 allseed = 1, repseed = 2)
-#' nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
+#'                 allseed = 1, repseed = 2, perfectseq = TRUE)
+#' r <- nestedradjust(mt$t3, wt$t3, mt$t0, wt$t0)
+#' plot(mt$e, r)
 #'
 #' @export
 
@@ -848,6 +850,51 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
   return(r)
 }
 
+#' Convert rate ratios to Z-values
+#'
+#' r2Z calculates the Z-values of rate ratios standardized to all rate ratios or
+#' a specified normalization subset.
+#'
+#' @param r Character vector. List of rate ratios
+#' @param normsubset Integer vector. Specify the indices of features that are to
+#'   be used in standardization
+#' @param method Character. Specify what method to use for standardization.
+#'   Options are "median" and "mean". Default = "mean"
+#'
+#' @return Returns a numeric vector of the same length as the number of rate
+#'   ratios
+#'
+#' @details While not strictly required, it is recommended to input
+#'   log-transformed rate ratios. Standardization is by default done using the
+#'   mean and standard deviation: \code{(r-mean(r))/sd(r)}. By specifying method = "median", it does
+#'   so using the median and median absolute deviations: \code{(r-median(r))/mad(r)}. 
+#'
+#' @note Functions in the CSSA package by default return log-transformed rate
+#'   ratios. These can directly be used as input for this function.
+#'
+#' @author Jos B. Poell
+#'
+#' @seealso \code{\link{sumZ}}
+#'
+#' @export
+
+r2Z <- function(r, normsubset, method = "mean") {
+  if (method == "median") {
+    if (!missing(normsubset)) {
+      Z <- (r-median(r[normsubset]))/mad(r[normsubset])
+    } else {
+      Z <- (r-median(r))/mad(r) 
+    }
+  } else {
+    if (!missing(normsubset)) {
+      Z <- (r-mean(r[normsubset]))/sd(r[normsubset])
+    } else {
+      Z <- (r-mean(r))/sd(r)
+    }
+  }
+  return(Z)
+}
+
 
 #' Calculate corrected summed Z-values per gene
 #'
@@ -865,16 +912,16 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = TRUE, normfun = "sum",
 #'
 #' @author Jos B. Poell
 #' 
-#' @seealso \code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}
+#' @seealso \code{\link{CRISPRsim}}, \code{\link{jar}}, \code{\link{radjust}}, \code{\link{r2Z}}
 #'
 #' @examples
-#' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1)
-#' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1)
-#' cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
+#' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1, perfectsampling = TRUE)
+#' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1, perfectsampling = TRUE)
+#' cgi <- which(tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05)
 #' r0 <- jar(ut$t6, ut$t0)
 #' r1 <- jar(tr$t6, ut$t6)
-#' Z0 <- (r0-mean(r0[cgi]))/sd(r0[cgi])
-#' Z1 <- (r1-mean(r1[cgi]))/sd(r1[cgi])
+#' Z0 <- r2Z(r0, normsubset = cgi)
+#' Z1 <- r2Z(r1, normsubset = cgi)
 #' sumZ0 <- sumZ(tr$guides, Z0)
 #' sumZ1 <- sumZ(tr$guides, Z1)
 #' reald <- rle(tr$d)$values
@@ -984,8 +1031,8 @@ sumZ <- function(guides, Z) {
 #' @author Jos B. Poell
 #'   
 #' @examples
-#' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1)
-#' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1)
+#' ut <- CRISPRsim(5000, 4, a = c(3,3), allseed = 1, perfectseq = TRUE)
+#' tr <- CRISPRsim(5000, 4, a = c(3,3), e = TRUE, allseed = 1, perfectseq = TRUE)
 #' cgi <- tr$d > -0.05 & tr$d < 0.05 & tr$e > -0.05 & tr$e < 0.05
 #' r0 <- jar(ut$t6, ut$t0, normsubset = cgi)
 #' r1 <- jar(tr$t6, ut$t6, normsubset = cgi)
@@ -999,8 +1046,6 @@ sumZ <- function(guides, Z) {
 
 getdeg <- function(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
                    skipcutoff = FALSE, correctab = TRUE) {
-  
-#  message("In this version the function has been rewritten to calculate d as 0-centered!!")
   
   if (missing(a)) {
     stop("enter the presumed number of population doublings")

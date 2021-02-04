@@ -24,6 +24,7 @@ rate ratios and duration of the experiment.
 \item{\code{\link{nestedradjust}}}{Calculate rate ratios of rate ratios restricted by confidence level}
 \item{\code{\link{jar}}}{Rate ratios after adding an artificial number to all features}
 \item{\code{\link{doublejar}}}{Rate ratios of rate ratios after adding an artificial number to all features}
+\item{\code{\link{r2Z}}}{Convert rate ratios to Z-values}
 \item{\code{\link{sumZ}}}{Calculate corrected summed Z-values per gene}
 \item{\code{\link{getdeg}}}{Derive growth-modifying effect of gene knockout in pooled experiments}
 \item{\code{\link{ess}}}{Get a list of essential genes or corresponding indices in the data set}
