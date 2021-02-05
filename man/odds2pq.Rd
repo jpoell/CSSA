@@ -27,7 +27,9 @@ The function basically calculates the probability of something being
   value is multiplied by 2 to correct for 2-sided testing. For log odds, the
   absolute log value is subtracted from the log of 2 using the corresponding
   log base. Though not exact, this is a very close approximation with high or
-  low odds, which is what this analysis is meant for.
+  low odds, which is what this analysis is meant for. If you require precise
+  answers or are interested in p-values of weak odds, use non-transformed
+  odds and specify log = FALSE.
 }
 \seealso{
 \code{\link{oddscores}}, \code{\link{geneodds}}

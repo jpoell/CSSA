@@ -547,7 +547,7 @@ oddscores <- function(r, normsubset, log = 10) {
 #' @note In a similar fashion as \code{\link{sumZ}} and \code{\link{getdeg}},
 #'   this function combines odds of all guides belonging to a gene for all genes
 #'   in the data set. Keep in mind that guides have to be sorted by gene name,
-#'   and there value is expected to start with the gene name, number or symbol,
+#'   and their value is expected to start with the gene name, number or symbol,
 #'   followed by an underscore. Odds are combined by multiplying or adding log
 #'   odds, after which the odds are corrected for being composed of multiple
 #'   odds. The code in the example shows an example with uniformly distributed
@@ -614,7 +614,9 @@ geneodds <- function(guides, oddscores, log = TRUE) {
 #'   value is multiplied by 2 to correct for 2-sided testing. For log odds, the
 #'   absolute log value is subtracted from the log of 2 using the corresponding
 #'   log base. Though not exact, this is a very close approximation with high or
-#'   low odds, which is what this analysis is meant for.
+#'   low odds, which is what this analysis is meant for. If you require precise
+#'   answers or are interested in p-values of weak odds, use non-transformed
+#'   odds and specify log = FALSE.
 #'
 #' @author Jos B. Poell
 #'
@@ -626,7 +628,8 @@ odds2pq <- function(odds, log = 10) {
   if (log == TRUE) {
     # I use a bit of a cheat here to convert odds to probabilities, but it
     # converges to the true probability for large or small odds, which are the
-    # ones we are going to be interested in anyway.
+    # ones we are going to be interested in anyway. If you are interested in
+    # precise answers, use non-transformed odds and specify log = FALSE.
     p <- pmin(0, log(2)-abs(odds))
     o <- order(p, decreasing = TRUE)
     ro <- order(o)
@@ -637,13 +640,7 @@ odds2pq <- function(odds, log = 10) {
     ro <- order(o)
     q <- pmin(0, cummin(log(length(p)/seq(length(p),1),log) + p[o]))[ro]
   } else {
-    p <- sapply(odds, function(o) {
-      if (o <= 1) {
-        (2*o)/(1+o)
-      } else {
-        2-(2*o)/(1+o)
-      }
-    })
+    p <- ifelse(odds <= 1, (2*odds)/(1+odds), 2-(2*odds)/(1+odds))
     q <- p.adjust(p, method = "BH")
   }
   return(data.frame(odds=odds,p=p,q=q))
