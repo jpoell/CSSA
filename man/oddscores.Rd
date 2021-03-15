@@ -18,7 +18,9 @@ Alternatively, specify the base with which to log-transform. Default = 10}
 }
 \value{
 Returns a numeric vector with (by default log10-transformed) odds, of
-  the same length as the number of rate ratios provided.
+  the same length as the number of rate ratios provided. These are the odds
+  that the rate ratio is lower than the one observed based on the (control)
+  population.
 }
 \description{
 Returns odds based on rate ratios of guides. The odds are based on the rank
@@ -26,7 +28,7 @@ of a guide compared to a subset of control guides or the entire library.
 }
 \note{
 Odds in this function represent the odds that a feature has a rate
-  ratio that is this extreme, either relative to the entire data set or to
+  ratio that is this low or lower, either relative to the entire data set or to
   the normalization subset when provided. These odds are mostly based on
   rank. Only if they are more extreme than the most extreme control are they
   extrapolated. Even then, extrapolation is quite conservative. There is also

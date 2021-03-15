@@ -202,7 +202,7 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
 #'                  repseed = 5, perfectseq = TRUE)
 #' tr3 <- CRISPRsim(1000, 4, a = c(3,3), e = TRUE, allseed = 100, t0seed = 30, 
 #'                  repseed = 6, perfectseq = TRUE)
-#' cgi <- tr1$d > -0.05 & tr1$d < 0.05 & tr1$e > -0.05 & tr1$e < 0.05
+#' cgi <- tr1$d > -0.05 & tr1$d < 0.025 & tr1$e > -0.05 & tr1$e < 0.025
 #' rr0 <- rrep(cbind(ut1$t6, ut2$t6, ut3$t6), cbind(ut1$t0, ut2$t0, ut3$t0), normsubset = cgi)
 #' rr1 <- rrep(cbind(tr1$t6, tr2$t6, tr3$t6), cbind(ut1$t6, ut2$t6, ut3$t6), normsubset = cgi)
 #' deg <- degrep(ut1$guides, rr0$r, rr0$se, rr1$r, rr1$se, a = 6, b = 6, secondbest = FALSE)

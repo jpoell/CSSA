@@ -478,10 +478,12 @@ sortingsim <- function(genes, guides, g, f, d, e, baseprob = 0.1,
 #'   Alternatively, specify the base with which to log-transform. Default = 10
 #'
 #' @return Returns a numeric vector with (by default log10-transformed) odds, of
-#'   the same length as the number of rate ratios provided.
+#'   the same length as the number of rate ratios provided. These are the odds
+#'   that the rate ratio is lower than the one observed based on the (control)
+#'   population.
 #'
 #' @note Odds in this function represent the odds that a feature has a rate
-#'   ratio that is this extreme, either relative to the entire data set or to
+#'   ratio that is this low or lower, either relative to the entire data set or to
 #'   the normalization subset when provided. These odds are mostly based on
 #'   rank. Only if they are more extreme than the most extreme control are they
 #'   extrapolated. Even then, extrapolation is quite conservative. There is also
@@ -548,16 +550,18 @@ oddscores <- function(r, normsubset, log = 10) {
 #'   this function combines odds of all guides belonging to a gene for all genes
 #'   in the data set. Keep in mind that guides have to be sorted by gene name,
 #'   and their value is expected to start with the gene name, number or symbol,
-#'   followed by an underscore. Odds are combined by multiplying or adding log
-#'   odds, after which the odds are corrected for being composed of multiple
-#'   odds. The code in the example shows an example with uniformly distributed
-#'   p-values.
+#'   followed by an underscore. Odds are combined by multiplying odds or adding
+#'   log odds, after which the odds are corrected for being composed of multiple
+#'   odds. This correction changes the meaning of the odds: the returned result
+#'   does not signify the odds that this specific gene has a lower rate ratio,
+#'   but the odds that any gene with this many guide has a lower rate ratio. The
+#'   code in the example shows an example with uniformly distributed p-values.
 #'
 #' @author Jos B. Poell
 #'
 #' @seealso \code{\link{oddscores}}, \code{\link{odds2pq}}, \code{\link{sumZ}},
 #'   \code{\link{getdeg}}
-#'   
+#'
 #' @examples
 #' guides <- paste0("gene", rep(1:2500, each = 4), "_", rep(1:4, 2500))
 #' p <- runif(10000)
@@ -644,4 +648,862 @@ odds2pq <- function(odds, log = 10) {
     q <- p.adjust(p, method = "BH")
   }
   return(data.frame(odds=odds,p=p,q=q))
+}
+
+
+# The geteffect functions are a pair of functions that attempt to estimate the
+# effect of gene knockout on cell growth by calculating the odds that the gene
+# has a lower fold change than observed given a range of potential effect sizes.
+# The odds of a lower fold change are calculated for each guide targeting a
+# gene, and are then combined. The expected fold changes for certain effect
+# sizes are calculated for a range of guide efficacies, which should represent
+# the guide efficacies in the screen! At the time of writing I do not have a
+# specific function in this package yet. What I have done before, is to
+# calculate the guide efficacy of the guides targeting essential genes compared
+# to the best guide of that gene, and then exclude the best guides. This
+# actually works really well, although the representation of very good guides
+# will be underestimated. Your library is better than you think! To do this
+# after a CRISPR screen, use getdeg, and check out the estimated g of the
+# essential genes. Moving on. Another important consideration is that the odds
+# that are calculated for a gene at a specific effect size, are corrected for
+# the probability of any gene having that effect size! I call this the empirical
+# bayesian correction (is it though?). Here I take a little shortcut. To
+# estimate the effect sizes, I take the most extreme fold change of each gene,
+# and calculate what the effect size would be given the provided number of cell
+# doublings and assuming a perfect guide. Keep in mind, that the fact that I
+# assume a perfect guide, actually means that these effect sizes are smaller
+# than they really are. Therefore, strong effect sizes are a bit overcorrected.
+# I believe the correction is crucial: if you have a mildly lethal gene that
+# happens to be targeted by mostly very good guides (yes, that will happen in a
+# genome-wide screen), the effect will be greatly overestimated without the
+# correction.
+
+#' Approximate effect of gene knockout on growth
+#'
+#' geteffect functions calculate the combined likelihood that the fold changes
+#' observed for all guides of a gene between two time points or conditions is
+#' smaller than expected at certain effect size(s).
+#'
+#' @param guides Character vector. Guides are assumed to start with the gene
+#'   name, followed by an underscore, followed by a number or sequence unique
+#'   within that gene.
+#' @param r Numeric vector. Log2-transformed rate ratios
+#' @param rse Numeric vector. Standard error of the rate ratios
+#' @param t1 Integer vector. Read counts of the test arm
+#' @param t0 Integer vector. Read counts of the control arm
+#' @param normfun Character string. Specify with which function to standardize
+#'   the data. Default = "sum"
+#' @param normsubset Integer vector. Specify the indices of features that
+#'   function as controls. If omitted, all features are used.
+#' @param a Numeric. Estimated potential population doublings between time
+#'   points.
+#' @param g Numeric vector. Specify representative guide efficacies. If omitted,
+#'   an exponentially decreasing set of guide efficacies with length \code{gl}
+#'   will be created.
+#' @param gw Numeric vector. Specify the relative prevalence of each guide
+#'   efficacy provided with \code{g}. If omitted, a top-heavy distribution will
+#'   be created to roughly represent guide efficacy distribution in
+#'   \code{\link{CRISPRsim}}
+#' @param gl Numeric. Number of guide efficacies to test. Only used when
+#'   \code{g} is not specified, in which case it needs to be at least 4. Default
+#'   = 11
+#' @param subset Integer vector. Specify the indices of features for which to
+#'   return output. All features will be used for empirical Bayes correction.
+#' @param effectrange Numeric vector. Sequence of effect values to test. If
+#'   omitted, a range will be calculated based on the most highest and lowest
+#'   rate ratios in the data set.
+#' @param output Character string. Specify which output to generate. Can be
+#'   either "range", "exact", or "both". Default = "range"
+#' @param exactci Logical or numeric. Specify the confidence interval of the
+#'   exact effect as a fraction between 0 and 1. Only applicable if exact values
+#'   are calculated. If FALSE, confidence interval is omitted. Default = FALSE
+#' @param semiexact Logical. If TRUE, exact effect values are estimated based on
+#'   the likelihoods of effect values flanking a log likelihood of 0 (or the
+#'   respective log likelihood of the confidence interval). Note that a finer
+#'   resolution of effect values than provided by default are recommended when
+#'   applying this approach. Default = FALSE
+#' @param ebcfun Character string or logical. Specify the function that is used
+#'   to select gene-wise rate ratios for the empirical Bayes correction.
+#'   Suggested options are "max", "median", and "mean". Note that "max" selects
+#'   the most extreme rate ratio, not the highest. If FALSE, no empirical Bayes
+#'   correction is performed, which will generally lead to overestimation of
+#'   negative effects. Default = "max"
+#' @param minprob Numeric. Cutoff point for the lowest considered likelihood.
+#'   Default = 10^-6
+#'
+#' @details geteffect uses all guides targeting a gene, and incorporates the
+#'   distribution of guide efficacies (given as parameters by the user) and
+#'   effect values (interpolated from the data). The process is as follows. For
+#'   a (predefined) effect value, the expected fold change is calculated at a
+#'   range of different guide efficacies. Next, the probability that the
+#'   observed fold change is smaller than the expected fold change is calculated
+#'   at each guide efficacy. This number is multiplied with the density of each
+#'   guide efficacy (i.e. the weight of each guide efficacy, specified by the
+#'   user or by default similar to the distribution used in
+#'   \code{\link{CRISPRsim}}). This yields the probability that the fold change
+#'   observed for a specific guide is smaller than expected given the effect
+#'   value. The probability is converted to a log10 odds. The log-odds are
+#'   summed for each guide targeting the same gene, and the sum is divided by
+#'   the square root of the number of guides (see notes). Finally, the log-odds
+#'   are corrected for the prior probability of the effect value, which is
+#'   interpolated from the data using the \code{ebcfun}. The best estimate of
+#'   effect value for a gene is when the probability of being lower or higher
+#'   than that effect value or equal, and therefore the log-odds are 0. Beside
+#'   the estimates at the predefined effect values, closer estimations for each
+#'   gene (or a subset of the data set) may be obtained in the form of exact or
+#'   semiexact values.
+#'
+#'   Raw count data can be used as input for the \code{geteffect_c} function. If
+#'   replicates are present, the function \code{geteffect_r} will take the
+#'   precalculated log2 rate ratio (i.e. log2 fold change) and the accompanying
+#'   standard error of each rate ratio as input. These values can be obtained by
+#'   using the \code{\link{rrep}} function. These may also be derived from other
+#'   packages that can analyze high-throughput count data.
+#'
+#' @return Returns the following (depending on input arguments): \itemize{
+#'   \item{range}{ - data frame with log10 odds of effect per gene}
+#'   \item{exact}{ - vector with effect estimates, or data frame with effect
+#'   estimates including confidence interval} }
+#'
+#' @note While the calculations on the ranged output are fully vectorized, the
+#'   exact output needs to be calculated one gene at a time. And three times
+#'   when a confidence interval is included. I have noticed that computation
+#'   time does not scale linearly after a certain number of genes, but takes
+#'   even longer (this seemed to happen around 500 genes in my case). I guess
+#'   that this might mean I ran out of memory, although I do not understand why
+#'   this would happen. Therefore, I would not recommend running exact
+#'   calculations for a whole genome data set. If you want "more exact" results
+#'   than given by the default range, set \code{effectrange} yourself (e.g.
+#'   \code{seq(-2, 1, by = 0.01)}). Use \code{semiexact == TRUE} to get closer
+#'   approximations and unique effect values without crashing the computer.
+#'
+#'   Using \code{\link{CRISPRsim}} to validate the performance of this function,
+#'   the exact effect values end up very close to the input effect values, but
+#'   especially genes that lack an efficacious guide are underestimated. Due to
+#'   this, the confidence intervals are a bit off. Specifically, the confidence
+#'   limits are too tight on the "more extreme than" side, meaning a gene might
+#'   actually have a higher probability of a stronger effect than the confidence
+#'   interval would suggest.
+#'
+#'   A minimum likelihood was introduced with the \code{minprob} option to
+#'   prevent Inf and -Inf results. This may prevent errors and help plotting.
+#'   But also from a biological perspective it makes sense. There is perhaps a
+#'   chance that a guide creates an off-target knockout with a stronger effect
+#'   than possible with the gene it is supposed to target. Setting
+#'   \code{minprob} to a lower number can help with sensitivity in a few cases.
+#'
+#'   The sum of the log-odds is divided by the square root of the number of
+#'   guides. Therefore, it is not the odds of this particular gene having a more
+#'   negative effect value than the tested value, but the odds of any gene with
+#'   this many guides having a more negative effect value. The example code in
+#'   \code{\link{geneodds}} visualizes the combination of odds in this fashion.
+#'
+#' @seealso \code{\link{rrep}}, \code{\link{CRISPRsim}}, \code{\link{odds2pq}}
+#'
+#' @author Jos B. Poell
+#'
+#' @examples
+#' ut1 <- CRISPRsim(100, 4, a = c(3,3), allseed = 100, t0seed = 10,
+#'                  repseed = 1, perfectseq = TRUE)
+#' ut2 <- CRISPRsim(100, 4, a = c(3,3), allseed = 100, t0seed = 20,
+#'                  repseed = 3, perfectseq = TRUE)
+#' ut3 <- CRISPRsim(100, 4, a = c(3,3), allseed = 100, t0seed = 30,
+#'                  repseed = 5, perfectseq = TRUE)
+#' cgi <- ut1$d > -0.05 & ut1$d < 0.025
+#' df <- data.frame(guides = ut1$guides,
+#'                  T01 = ut1$t0, T02 = ut2$t0, T03 = ut3$t0,
+#'                  UT1 = ut1$t6, UT2 = ut2$t6, UT3 = ut3$t6,
+#'                  stringsAsFactors = FALSE)
+#' r <- rrep(t1 = df[,5:7], t0 = df[,2:4], normsubset = cgi)
+#' results <- geteffect_r(df$guides, r = r$r, rse = r$se, a = 6,
+#'                        output = "both", semiexact = TRUE)
+#' d <- rle(ut1$d)$values
+#' plot(d, results$exact, xlab = "real effect",
+#'      ylab = "estimated effect")
+#'
+#' @name geteffect
+#' @aliases geteffect geteffect_c geteffect_r
+NULL
+
+#' @rdname geteffect
+#' @export
+geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset, 
+                        a, g, gw, gl = 11, subset, effectrange, 
+                        output = "range", exactci = FALSE, 
+                        semiexact = FALSE, ebcfun = "max", 
+                        minprob = 10^-6) {
+  if (missing(a)) {
+    stop("enter the presumed number of population doublings")
+  }
+  if (missing(g)) {
+    if (gl < 4) {
+      warning("gl should be at least 4: it is now set to 4")
+      gl <- 4
+    }
+    g <- (11-11^((seq_len(gl)-1)/(gl-1)))/10
+  }
+  if (missing(gw)) {
+    gw <- c(1,3,2,rep(1, length(g)-4),2)
+  }
+  if (length(g) != length(gw)) {
+    warning("Length of g's and weights of g's is unequal")
+    if (length(gw) < length(g)) {
+      gw <- c(gw, rep(tail(gw, 1), length(g)-length(gw)))
+    } else {
+      gw <- gw[seq_along(g)]
+    }
+  }
+  # Normalize gene weights so they sum to 1
+  gw <- gw/sum(gw)
+  
+  r <- jar(t1, t0, 1)
+  
+  if (missing(effectrange)) {
+    if (!missing(subset)) {
+      effectrange <- round(seq(floor(30*min(r[subset])/a), ceiling(30*max(r[subset])/a))/20, 2)
+    } else {
+      effectrange <- round(seq(floor(30*min(r)/a), ceiling(30*max(r)/a))/20, 2)
+    }
+  } else {
+    # effectrange needs to be sorted from low to high
+    effectrange <- sort(effectrange)
+  }
+  
+  # note that guides are presumed to be named [gene]_[number | sequence]
+  genes <- rle(gsub("_.*", "", guides))$values
+  nguides <- rle(gsub("_.*", "", guides))$lengths
+  genei <- cumsum(nguides)
+  
+  fcmat <- matrix(nrow = length(effectrange), ncol = length(g))
+  for (c in seq_len(ncol(fcmat))) {
+    fcmat[,c] <- (g[c]*2^((1+effectrange)*a) + (1-g[c])*2^a)/2^a
+  }
+  
+  fun <- get(normfun)
+  if (!missing(normsubset)) {
+    sr0 <- fun(t0[normsubset])
+    sr1 <- fun(t1[normsubset])
+  } else {
+    sr0 <- fun(t0)
+    sr1 <- fun(t1)
+  }
+  
+  if (ebcfun != FALSE) {
+    if (ebcfun == "max") {
+      ebcr <- mapply(function(n, gi) {
+        r[(gi-n+1):(gi)][which.max(abs(r[(gi-n+1):(gi)]))]
+      }, nguides, genei)/a
+    } else {
+      fun <- get(ebcfun)
+      ebcr <- mapply(function(n, gi) {
+        fun(r[(gi-n+1):(gi)])
+      }, nguides, genei)/a
+    }
+    effectodds <- oddscores(c(effectrange, ebcr), 
+                            normsubset = seq_along(ebcr)+length(effectrange), 
+                            log = 10)[seq_along(effectrange)]
+  }
+  
+  if (!missing(subset)) {
+    if (!is(subset, "numeric")) {
+      subset <- which(gsub("_.*", "", guides) %in% subset)
+    }
+    guides <- guides[subset]
+    genes <- rle(gsub("_.*", "", guides))$values
+    nguides <- rle(gsub("_.*", "", guides))$lengths
+    genei <- cumsum(nguides)
+  }
+  
+  # I have noted I have to first bind the variables used in foreach...
+  n <- gi <- gene <- i <- NULL
+  
+  if (output == "range" || output == "both") {
+    # I imagine it is beneficial to perform the outer loop in parallel using
+    # %dopar% if a parallel backend is available
+    allodds <- foreach(n=nguides, gi=genei, .combine = cbind) %do% {
+      odf <- foreach(i = seq_len(n), .combine = cbind) %do% {
+        pmat <- 1-pbinom(t1[gi-n+i], t1[gi-n+i]+t0[gi-n+i], fcmat * sr1 / (fcmat * sr1 + sr0))
+        p <- apply(pmat, 1, function(p) {sum(p*gw)})
+        o <- log(p/(1-p), 10)
+        o[o < log(minprob, 10)] <- -6 
+        o[o > -log(minprob, 10)] <- 6
+        return(o)
+      }
+      if (ebcfun != FALSE) {
+        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds
+      } else {
+        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})
+      }
+    }
+    allodds <- as.data.frame(t(round(allodds, digits = 3)))
+    colnames(allodds) <- effectrange
+    rownames(allodds) <- genes
+    if (output == "both" || semiexact == TRUE) {
+      if (semiexact == TRUE) {
+        exactodds <- semiexact(allodds, 0)
+      } else {
+        exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
+          lo <- which(allodds[gene,] < 0)
+          hi <- which(allodds[gene,] > 0)
+          if (length(lo) == 0) {
+            highe <- effectrange[min(hi)]
+            lowe <- 2*highe
+          } else {
+            lowe <- effectrange[max(lo)]
+            if (length(hi) == 0) {
+              highe <- 2*lowe
+            } else {
+              highe <- effectrange[min(hi)]
+            }
+          }
+          mean(approximate(function(e) {
+            fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+            if (ebcfun != FALSE) {
+              eodds <- oddscores(c(e, ebcr), 
+                                 normsubset = seq_along(ebcr)+1, 
+                                 log = 10)[1]
+            }
+            pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+              index <- genei[gene]-nguides[gene]+i
+              1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+            }
+            p <- apply(pmat, 2, function(p) {sum(p*gw)})
+            o <- log(p/(1-p), 10)
+            o[o < log(minprob, 10)] <- -6 
+            o[o > -log(minprob, 10)] <- 6
+            if (ebcfun != FALSE) {
+              sum(o)/sqrt(ncol(pmat))+eodds
+            } else {
+              sum(o)/sqrt(ncol(pmat))
+            }
+          }, 0, lowe, highe, 11, 2))
+        }
+      }
+      if (exactci != FALSE) {
+        plo <- (1-exactci)/2
+        if (semiexact == TRUE) {
+          olo <- log(plo/(1-plo),10)
+          exactlow <- semiexact(allodds, olo)
+          exacthigh <- semiexact(allodds, -olo)
+        } else {
+          exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
+            lo <- which(allodds[gene,] < log(plo/(1-plo),10))
+            hi <- which(allodds[gene,] > log(plo/(1-plo),10))
+            if (length(lo) == 0) {
+              highe <- effectrange[min(hi)]
+              lowe <- 2*highe
+            } else {
+              lowe <- effectrange[max(lo)]
+              if (length(hi) == 0) {
+                highe <- 2*lowe
+              } else {
+                highe <- effectrange[min(hi)]
+              }
+            }
+            mean(approximate(function(e) {
+              fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+              if (ebcfun != FALSE) {
+                eodds <- oddscores(c(e, ebcr), 
+                                   normsubset = seq_along(ebcr)+1, 
+                                   log = 10)[1]
+              }
+              pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+                index <- genei[gene]-nguides[gene]+i
+                1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+              }
+              p <- apply(pmat, 2, function(p) {sum(p*gw)})
+              o <- log(p/(1-p), 10)
+              o[o < log(minprob, 10)] <- -6 
+              o[o > -log(minprob, 10)] <- 6
+              if (ebcfun != FALSE) {
+                sum(o)/sqrt(ncol(pmat))+eodds
+              } else {
+                sum(o)/sqrt(ncol(pmat))
+              }
+            }, log(plo/(1-plo),10), lowe, highe, 11, 2))
+          }
+          exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
+            lo <- which(allodds[gene,] < -log(plo/(1-plo),10))
+            hi <- which(allodds[gene,] > -log(plo/(1-plo),10))
+            if (length(lo) == 0) {
+              highe <- effectrange[min(hi)]
+              lowe <- 2*highe
+            } else {
+              lowe <- effectrange[max(lo)]
+              if (length(hi) == 0) {
+                highe <- 2*lowe
+              } else {
+                highe <- effectrange[min(hi)]
+              }
+            }
+            mean(approximate(function(e) {
+              fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+              if (ebcfun != FALSE) {
+                eodds <- oddscores(c(e, ebcr), 
+                                   normsubset = seq_along(ebcr)+1, 
+                                   log = 10)[1]
+              }
+              pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+                index <- genei[gene]-nguides[gene]+i
+                1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+              }
+              p <- apply(pmat, 2, function(p) {sum(p*gw)})
+              o <- log(p/(1-p), 10)
+              o[o < log(minprob, 10)] <- -6 
+              o[o > -log(minprob, 10)] <- 6
+              if (ebcfun != FALSE) {
+                sum(o)/sqrt(ncol(pmat))+eodds
+              } else {
+                sum(o)/sqrt(ncol(pmat))
+              }
+            }, -log(plo/(1-plo),10), lowe, highe, 11, 2))
+          }
+        }
+        exactdf <- data.frame(gene = genes, 
+                              exact = exactodds, 
+                              lowerci = exactlow,
+                              upperci = exacthigh)
+        return(list(range=allodds, exact=exactdf))
+      } else {
+        names(exactodds) <- genes
+        return(list(range=allodds, exact=exactodds))
+      }
+    } else {return(allodds)}
+  } else {
+    exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
+      mean(approximate(function(e) {
+        fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+        if (ebcfun != FALSE) {
+          eodds <- oddscores(c(e, ebcr), 
+                             normsubset = seq_along(ebcr)+1, 
+                             log = 10)[1]
+        }
+        pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+          index <- genei[gene]-nguides[gene]+i
+          1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+        }
+        p <- apply(pmat, 2, function(p) {sum(p*gw)})
+        o <- log(p/(1-p), 10)
+        o[o < log(minprob, 10)] <- -6 
+        o[o > -log(minprob, 10)] <- 6
+        if (ebcfun != FALSE) {
+          sum(o)/sqrt(ncol(pmat))+eodds
+        } else {
+          sum(o)/sqrt(ncol(pmat))
+        }
+      }, 0, min(effectrange), max(effectrange), 11, 3))
+    }
+    if (exactci != FALSE) {
+      plo <- (1-exactci)/2
+      exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
+        mean(approximate(function(e) {
+          fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+          if (ebcfun != FALSE) {
+            eodds <- oddscores(c(e, ebcr), 
+                               normsubset = seq_along(ebcr)+1, 
+                               log = 10)[1]
+          }
+          pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+            index <- genei[gene]-nguides[gene]+i
+            1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+          }
+          p <- apply(pmat, 2, function(p) {sum(p*gw)})
+          o <- log(p/(1-p), 10)
+          o[o < log(minprob, 10)] <- -6 
+          o[o > -log(minprob, 10)] <- 6
+          if (ebcfun != FALSE) {
+            sum(o)/sqrt(ncol(pmat))+eodds
+          } else {
+            sum(o)/sqrt(ncol(pmat))
+          }
+        }, log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+      }
+      exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
+        mean(approximate(function(e) {
+          fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
+          if (ebcfun != FALSE) {
+            eodds <- oddscores(c(e, ebcr), 
+                               normsubset = seq_along(ebcr)+1, 
+                               log = 10)[1]
+          }
+          pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+            index <- genei[gene]-nguides[gene]+i
+            1-pbinom(t1[index], t1[index]+t0[index], fc * sr1 / (fc * sr1 + sr0))
+          }
+          p <- apply(pmat, 2, function(p) {sum(p*gw)})
+          o <- log(p/(1-p), 10)
+          o[o < log(minprob, 10)] <- -6 
+          o[o > -log(minprob, 10)] <- 6
+          if (ebcfun != FALSE) {
+            sum(o)/sqrt(ncol(pmat))+eodds
+          } else {
+            sum(o)/sqrt(ncol(pmat))
+          }
+        }, -log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+      }
+      exactdf <- data.frame(gene = genes, 
+                            exact = exactodds, 
+                            lowerci = exactlow,
+                            upperci = exacthigh)
+      return(exactdf)
+    } else {
+      names(exactodds) <- genes
+      return(exactodds)
+    }
+  }
+}
+
+
+#' @rdname geteffect
+#' @export
+geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11, 
+                        subset, effectrange, output = "range", 
+                        exactci = FALSE, semiexact = FALSE,  
+                        ebcfun = "max", minprob = 10^-6) {
+  if (missing(a)) {
+    stop("enter the presumed number of population doublings")
+  }
+  if (missing(g)) {
+    if (gl < 4) {
+      warning("gl should be at least 4: it is now set to 4")
+      gl <- 4
+    }
+    g <- (11-11^((seq_len(gl)-1)/(gl-1)))/10
+  }
+  if (missing(gw)) {
+    gw <- c(1,3,2,rep(1, length(g)-4),2)
+  }
+  if (length(g) != length(gw)) {
+    warning("Length of g's and weights of g's is unequal")
+    if (length(gw) < length(g)) {
+      gw <- c(gw, rep(tail(gw, 1), length(g)-length(gw)))
+    } else {
+      gw <- gw[seq_along(g)]
+    }
+  }
+  # Normalize gene weights so they sum to 1
+  gw <- gw/sum(gw)
+  
+  if (missing(effectrange)) {
+    if (!missing(subset)) {
+      effectrange <- round(seq(floor(30*min(r[subset])/a), ceiling(30*max(r[subset])/a))/20, 2)
+    } else {
+      effectrange <- round(seq(floor(30*min(r)/a), ceiling(30*max(r)/a))/20, 2)
+    }
+  } else {
+    # effectrange needs to be sorted from low to high
+    effectrange <- sort(effectrange)
+  }
+  
+  # note that guides are presumed to be named [gene]_[number | sequence]
+  genes <- rle(gsub("_.*", "", guides))$values
+  nguides <- rle(gsub("_.*", "", guides))$lengths
+  genei <- cumsum(nguides)
+  
+  fcmat <- matrix(nrow = length(effectrange), ncol = length(g))
+  for (c in seq_len(ncol(fcmat))) {
+    fcmat[,c] <- log((g[c]*2^((1+effectrange)*a) + (1-g[c])*2^a)/2^a,2)
+  }
+  
+  if (ebcfun != FALSE) {
+    if (ebcfun == "max") {
+      ebcr <- mapply(function(n, gi) {
+        r[(gi-n+1):(gi)][which.max(abs(r[(gi-n+1):(gi)]))]
+      }, nguides, genei)/a
+    } else {
+      fun <- get(ebcfun)
+      ebcr <- mapply(function(n, gi) {
+        fun(r[(gi-n+1):(gi)])
+      }, nguides, genei)/a
+    }
+    effectodds <- oddscores(c(effectrange, ebcr), 
+                            normsubset = seq_along(ebcr)+length(effectrange), 
+                            log = 10)[seq_along(effectrange)]
+  }
+  
+  if (!missing(subset)) {
+    if (!is(subset, "numeric")) {
+      subset <- which(gsub("_.*", "", guides) %in% subset)
+    }
+    guides <- guides[subset]
+    genes <- rle(gsub("_.*", "", guides))$values
+    nguides <- rle(gsub("_.*", "", guides))$lengths
+    genei <- cumsum(nguides)
+  }
+  
+  # I have noted I have to first bind the variables used in foreach...
+  n <- gi <- gene <- i <- NULL
+  
+  if (output == "range" || output == "both") {
+    # I imagine it is beneficial to perform the outer loop in parallel using
+    # %dopar% if a parallel backend is available
+    allodds <- foreach(n=nguides, gi=genei, .combine = cbind) %do% {
+      odf <- foreach(i = seq_len(n), .combine = cbind) %do% {
+        pmat <- pnorm((fcmat-r[gi-n+i])/rse[gi-n+i])
+        p <- apply(pmat, 1, function(p) {sum(p*gw)})
+        o <- log(p/(1-p), 10)
+        o[o < log(minprob, 10)] <- -6 
+        o[o > -log(minprob, 10)] <- 6
+        return(o)
+      }
+      if (ebcfun != FALSE) {
+        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds
+      } else {
+        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})
+      }
+      
+    }
+    allodds <- as.data.frame(t(round(allodds, digits = 3)))
+    colnames(allodds) <- effectrange
+    rownames(allodds) <- genes
+    if (output == "both" || semiexact == TRUE) {
+      if (semiexact == TRUE) {
+        exactodds <- semiexact(allodds, 0)
+      } else {
+        exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
+          lo <- which(allodds[gene,] < 0)
+          hi <- which(allodds[gene,] > 0)
+          if (length(lo) == 0) {
+            highe <- effectrange[min(hi)]
+            lowe <- 2*highe
+          } else {
+            lowe <- effectrange[max(lo)]
+            if (length(hi) == 0) {
+              highe <- 2*lowe
+            } else {
+              highe <- effectrange[min(hi)]
+            }
+          }
+          mean(approximate(function(e) {
+            fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+            if (ebcfun != FALSE) {
+              eodds <- oddscores(c(e, ebcr), 
+                                 normsubset = seq_along(ebcr)+1, 
+                                 log = 10)[1]
+            }
+            pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+              pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+            }
+            p <- apply(pmat, 2, function(p) {sum(p*gw)})
+            o <- log(p/(1-p), 10)
+            o[o < log(minprob, 10)] <- -6 
+            o[o > -log(minprob, 10)] <- 6
+            if (ebcfun != FALSE) {
+              sum(o)/sqrt(ncol(pmat))+eodds
+            } else {
+              sum(o)/sqrt(ncol(pmat))
+            }
+          }, 0, lowe, highe, 11, 2))
+        }
+      }
+      if (exactci != FALSE) {
+        plo <- (1-exactci)/2
+        if (semiexact == TRUE) {
+          olo <- log(plo/(1-plo),10)
+          exactlow <- semiexact(allodds, olo)
+          exacthigh <- semiexact(allodds, -olo)
+        } else {
+          exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
+            lo <- which(allodds[gene,] < log(plo/(1-plo),10))
+            hi <- which(allodds[gene,] > log(plo/(1-plo),10))
+            if (length(lo) == 0) {
+              highe <- effectrange[min(hi)]
+              lowe <- 2*highe
+            } else {
+              lowe <- effectrange[max(lo)]
+              if (length(hi) == 0) {
+                highe <- 2*lowe
+              } else {
+                highe <- effectrange[min(hi)]
+              }
+            }
+            mean(approximate(function(e) {
+              fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+              if (ebcfun != FALSE) {
+                eodds <- oddscores(c(e, ebcr), 
+                                   normsubset = seq_along(ebcr)+1, 
+                                   log = 10)[1]
+              }
+              pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+                pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+              }
+              p <- apply(pmat, 2, function(p) {sum(p*gw)})
+              o <- log(p/(1-p), 10)
+              o[o < log(minprob, 10)] <- -6 
+              o[o > -log(minprob, 10)] <- 6
+              if (ebcfun != FALSE) {
+                sum(o)/sqrt(ncol(pmat))+eodds
+              } else {
+                sum(o)/sqrt(ncol(pmat))
+              }
+            }, log(plo/(1-plo),10), lowe, highe, 11, 2))
+          }
+          exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
+            lo <- which(allodds[gene,] < -log(plo/(1-plo),10))
+            hi <- which(allodds[gene,] > -log(plo/(1-plo),10))
+            if (length(lo) == 0) {
+              highe <- effectrange[min(hi)]
+              lowe <- 2*highe
+            } else {
+              lowe <- effectrange[max(lo)]
+              if (length(hi) == 0) {
+                highe <- 2*lowe
+              } else {
+                highe <- effectrange[min(hi)]
+              }
+            }
+            mean(approximate(function(e) {
+              fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+              if (ebcfun != FALSE) {
+                eodds <- oddscores(c(e, ebcr), 
+                                   normsubset = seq_along(ebcr)+1, 
+                                   log = 10)[1]
+              }
+              pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+                pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+              }
+              p <- apply(pmat, 2, function(p) {sum(p*gw)})
+              o <- log(p/(1-p), 10)
+              o[o < log(minprob, 10)] <- -6 
+              o[o > -log(minprob, 10)] <- 6
+              if (ebcfun != FALSE) {
+                sum(o)/sqrt(ncol(pmat))+eodds
+              } else {
+                sum(o)/sqrt(ncol(pmat))
+              }
+            }, -log(plo/(1-plo),10), lowe, highe, 11, 2))
+          }
+        }
+        exactdf <- data.frame(gene = genes, 
+                              exact = exactodds, 
+                              lowerci = exactlow,
+                              upperci = exacthigh)
+        return(list(range=allodds, exact=exactdf))
+      } else {
+        names(exactodds) <- genes
+        return(list(range=allodds, exact=exactodds))
+      }
+      
+    } else {return(allodds)}
+  } else {
+    exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
+      mean(approximate(function(e) {
+        fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+        if (ebcfun != FALSE) {
+          eodds <- oddscores(c(e, ebcr), 
+                             normsubset = seq_along(ebcr)+1, 
+                             log = 10)[1]
+        }
+        pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+          pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+        }
+        p <- apply(pmat, 2, function(p) {sum(p*gw)})
+        o <- log(p/(1-p), 10)
+        o[o < log(minprob, 10)] <- -6 
+        o[o > -log(minprob, 10)] <- 6
+        if (ebcfun != FALSE) {
+          sum(o)/sqrt(ncol(pmat))+eodds
+        } else {
+          sum(o)/sqrt(ncol(pmat))
+        }
+      }, 0, min(effectrange), max(effectrange), 11, 3))
+    }
+    
+    if (exactci != FALSE) {
+      plo <- (1-exactci)/2
+      exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
+        mean(approximate(function(e) {
+          fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+          if (ebcfun != FALSE) {
+            eodds <- oddscores(c(e, ebcr), 
+                               normsubset = seq_along(ebcr)+1, 
+                               log = 10)[1]
+          }
+          pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+            pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+          }
+          p <- apply(pmat, 2, function(p) {sum(p*gw)})
+          o <- log(p/(1-p), 10)
+          o[o < log(minprob, 10)] <- -6 
+          o[o > -log(minprob, 10)] <- 6
+          if (ebcfun != FALSE) {
+            sum(o)/sqrt(ncol(pmat))+eodds
+          } else {
+            sum(o)/sqrt(ncol(pmat))
+          }
+        }, log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+      }
+      exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
+        mean(approximate(function(e) {
+          fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
+          if (ebcfun != FALSE) {
+            eodds <- oddscores(c(e, ebcr), 
+                               normsubset = seq_along(ebcr)+1, 
+                               log = 10)[1]
+          }
+          pmat <- foreach(i=seq_len(nguides[gene]), .combine = cbind) %do% {
+            pnorm((fc-r[genei[gene]-nguides[gene]+i])/rse[genei[gene]-nguides[gene]+i])
+          }
+          p <- apply(pmat, 2, function(p) {sum(p*gw)})
+          o <- log(p/(1-p), 10)
+          o[o < log(minprob, 10)] <- -6 
+          o[o > -log(minprob, 10)] <- 6
+          if (ebcfun != FALSE) {
+            sum(o)/sqrt(ncol(pmat))+eodds
+          } else {
+            sum(o)/sqrt(ncol(pmat))
+          }
+        }, -log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+      }
+      exactdf <- data.frame(gene = genes, 
+                            exact = exactodds, 
+                            lowerci = exactlow,
+                            upperci = exacthigh)
+      return(exactdf)
+    } else {
+      names(exactodds) <- genes
+      return(exactodds)
+    }
+  }
+}
+
+approximate <- function(fun, solution, from, to, steps, depth) {
+  fun <- match.fun(fun)
+  for (i in seq_len(depth)) {
+    input <- seq(from, to, length.out = steps)
+    answers <- sapply(input, fun)
+    if (solution %in% answers) {
+      return(input[answers == solution])
+    } else {
+      diff <- answers-solution
+      lo <- which(diff < 0)
+      if (length(lo)==0) {
+        warning("solution out of range")
+        return(NaN)
+      }
+      hi <- which(diff > 0)
+      if (length(hi)==0) {
+        warning("solution out of range")
+        return(NaN)
+      }
+      if (max(lo) < max(hi)) {
+        from <- input[lo[tail(which(diff[lo]==max(diff[lo])),1)]]
+        to <- input[hi[head(which(diff[hi]==min(diff[hi])),1)]]
+      } else {
+        from <- input[lo[head(which(diff[lo]==max(diff[lo])),1)]]
+        to <- input[hi[tail(which(diff[hi]==min(diff[hi])),1)]]
+      }
+    }
+  }
+  return(c(from, to))
+}
+
+semiexact <- function(range, o) {
+  apply(range, 1, function(x) {
+    l <- tail(which(x < o), 1)
+    h <- head(which(x > o), 1)
+    lo <- as.numeric(names(x)[l])
+    hi <- as.numeric(names(x)[h])
+    lo + (hi-lo)*(10^(x[l]+x[h]-2*o) / (1 + 10^(x[l]+x[h]-2*o)))
+  })
 }

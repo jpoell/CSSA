@@ -25,10 +25,12 @@ In a similar fashion as \code{\link{sumZ}} and \code{\link{getdeg}},
   this function combines odds of all guides belonging to a gene for all genes
   in the data set. Keep in mind that guides have to be sorted by gene name,
   and their value is expected to start with the gene name, number or symbol,
-  followed by an underscore. Odds are combined by multiplying or adding log
-  odds, after which the odds are corrected for being composed of multiple
-  odds. The code in the example shows an example with uniformly distributed
-  p-values.
+  followed by an underscore. Odds are combined by multiplying odds or adding
+  log odds, after which the odds are corrected for being composed of multiple
+  odds. This correction changes the meaning of the odds: the returned result
+  does not signify the odds that this specific gene has a lower rate ratio,
+  but the odds that any gene with this many guide has a lower rate ratio. The
+  code in the example shows an example with uniformly distributed p-values.
 }
 \examples{
 guides <- paste0("gene", rep(1:2500, each = 4), "_", rep(1:4, 2500))

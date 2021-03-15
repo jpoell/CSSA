@@ -30,8 +30,9 @@
 #' @author Jos B. Poell
 #' 
 #' @importFrom methods is
-#' @importFrom stats median p.adjust pnorm poisson.test rbinom rnorm runif sd mad
+#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad
 #' @importFrom utils data head tail write.table
+#' @importFrom foreach foreach "%do%"
 #' @docType package
 #' @name CSSA-package
 #' @aliases CSSA CSSA-package
