@@ -6,7 +6,7 @@
 \alias{CSSA}
 \title{CSSA: Analysis and Simulation Tools for CRISPR-Cas9 Pooled Screens}
 \description{
-CSSA contains a number of functions to analyze and simulation pooled
+CSSA contains a number of functions to analyze and simulate pooled
 CRISPR-Cas9-based screens. The simulators, represented by the CRISPRsim and
 sortingsim functions, offer an easy but also highly customizable tool to
 create data with guide- and gene-specific variables that can be randomly
