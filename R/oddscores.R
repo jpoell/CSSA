@@ -729,7 +729,7 @@ odds2pq <- function(odds, log = 10) {
 #'   correction is performed, which will generally lead to overestimation of
 #'   negative effects. Default = "max"
 #' @param minprob Numeric. Cutoff point for the lowest considered likelihood.
-#'   Default = 10^-6
+#'   Default = 10^-20
 #'
 #' @details geteffect uses all guides targeting a gene, and incorporates the
 #'   distribution of guide efficacies (given as parameters by the user) and
@@ -831,7 +831,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
                         a, g, gw, gl = 11, subset, effectrange, 
                         output = "range", exactci = FALSE, 
                         semiexact = FALSE, ebcfun = "max", 
-                        minprob = 10^-6) {
+                        minprob = 10^-20) {
   if (missing(a)) {
     stop("enter the presumed number of population doublings")
   }
@@ -1159,7 +1159,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
 geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11, 
                         subset, effectrange, output = "range", 
                         exactci = FALSE, semiexact = FALSE,  
-                        ebcfun = "max", minprob = 10^-6) {
+                        ebcfun = "max", minprob = 10^-20) {
   if (missing(a)) {
     stop("enter the presumed number of population doublings")
   }
