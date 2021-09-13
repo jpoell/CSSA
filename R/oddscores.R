@@ -21,7 +21,7 @@
 #' Simulate a selection-based CRISPR-Cas9 pooled screen
 #'
 #' sortingsim simulates a selection-based CRISPR-Cas9 pooled screen with
-#' user-defined parameters. In a way, this is simplified version of
+#' user-defined parameters. In a way, this is a simplified version of
 #' \code{\link{CRISPRsim}}, because there is no simulation of growth and
 #' passaging. It is about entering into an assay with a number of cells, and
 #' collecting the selected and unselected cells for sequencing. This was mainly
@@ -710,8 +710,8 @@ odds2pq <- function(odds, log = 10) {
 #' @param subset Integer vector. Specify the indices of features for which to
 #'   return output. All features will be used for empirical Bayes correction.
 #' @param effectrange Numeric vector. Sequence of effect values to test. If
-#'   omitted, a range will be calculated based on the most highest and lowest
-#'   rate ratios in the data set.
+#'   omitted, a range will be calculated based on the highest and lowest rate
+#'   ratios in the data set.
 #' @param output Character string. Specify which output to generate. Can be
 #'   either "range", "exact", or "both". Default = "range"
 #' @param exactci Logical or numeric. Specify the confidence interval of the
@@ -748,7 +748,7 @@ odds2pq <- function(odds, log = 10) {
 #'   are corrected for the prior probability of the effect value, which is
 #'   interpolated from the data using the \code{ebcfun}. The best estimate of
 #'   effect value for a gene is when the probability of being lower or higher
-#'   than that effect value or equal, and therefore the log-odds are 0. Beside
+#'   than that effect value or equal, and therefore the log-odds are 0. Besides
 #'   the estimates at the predefined effect values, closer estimations for each
 #'   gene (or a subset of the data set) may be obtained in the form of exact or
 #'   semiexact values.
@@ -787,10 +787,6 @@ odds2pq <- function(odds, log = 10) {
 #'
 #'   A minimum likelihood was introduced with the \code{minprob} option to
 #'   prevent Inf and -Inf results. This may prevent errors and help plotting.
-#'   But also from a biological perspective it makes sense. There is perhaps a
-#'   chance that a guide creates an off-target knockout with a stronger effect
-#'   than possible with the gene it is supposed to target. Setting
-#'   \code{minprob} to a lower number can help with sensitivity in a few cases.
 #'
 #'   The sum of the log-odds is divided by the square root of the number of
 #'   guides. Therefore, it is not the odds of this particular gene having a more
@@ -925,8 +921,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
         pmat <- 1-pbinom(t1[gi-n+i], t1[gi-n+i]+t0[gi-n+i], fcmat * sr1 / (fcmat * sr1 + sr0))
         p <- apply(pmat, 1, function(p) {sum(p*gw)})
         o <- log(p/(1-p), 10)
-        o[o < log(minprob, 10)] <- -6 
-        o[o > -log(minprob, 10)] <- 6
+        o[o < log(minprob, 10)] <- log(minprob, 10) 
+        o[o > -log(minprob, 10)] <- -log(minprob, 10)
         return(o)
       }
       if (ebcfun != FALSE) {
@@ -969,8 +965,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
             }
             p <- apply(pmat, 2, function(p) {sum(p*gw)})
             o <- log(p/(1-p), 10)
-            o[o < log(minprob, 10)] <- -6 
-            o[o > -log(minprob, 10)] <- 6
+            o[o < log(minprob, 10)] <- log(minprob, 10) 
+            o[o > -log(minprob, 10)] <- -log(minprob, 10)
             if (ebcfun != FALSE) {
               sum(o)/sqrt(ncol(pmat))+eodds
             } else {
@@ -1013,8 +1009,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
               }
               p <- apply(pmat, 2, function(p) {sum(p*gw)})
               o <- log(p/(1-p), 10)
-              o[o < log(minprob, 10)] <- -6 
-              o[o > -log(minprob, 10)] <- 6
+              o[o < log(minprob, 10)] <- log(minprob, 10) 
+              o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
                 sum(o)/sqrt(ncol(pmat))+eodds
               } else {
@@ -1049,8 +1045,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
               }
               p <- apply(pmat, 2, function(p) {sum(p*gw)})
               o <- log(p/(1-p), 10)
-              o[o < log(minprob, 10)] <- -6 
-              o[o > -log(minprob, 10)] <- 6
+              o[o < log(minprob, 10)] <- log(minprob, 10) 
+              o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
                 sum(o)/sqrt(ncol(pmat))+eodds
               } else {
@@ -1084,8 +1080,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
         }
         p <- apply(pmat, 2, function(p) {sum(p*gw)})
         o <- log(p/(1-p), 10)
-        o[o < log(minprob, 10)] <- -6 
-        o[o > -log(minprob, 10)] <- 6
+        o[o < log(minprob, 10)] <- log(minprob, 10) 
+        o[o > -log(minprob, 10)] <- -log(minprob, 10)
         if (ebcfun != FALSE) {
           sum(o)/sqrt(ncol(pmat))+eodds
         } else {
@@ -1109,8 +1105,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
           }
           p <- apply(pmat, 2, function(p) {sum(p*gw)})
           o <- log(p/(1-p), 10)
-          o[o < log(minprob, 10)] <- -6 
-          o[o > -log(minprob, 10)] <- 6
+          o[o < log(minprob, 10)] <- log(minprob, 10) 
+          o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
             sum(o)/sqrt(ncol(pmat))+eodds
           } else {
@@ -1132,8 +1128,8 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
           }
           p <- apply(pmat, 2, function(p) {sum(p*gw)})
           o <- log(p/(1-p), 10)
-          o[o < log(minprob, 10)] <- -6 
-          o[o > -log(minprob, 10)] <- 6
+          o[o < log(minprob, 10)] <- log(minprob, 10) 
+          o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
             sum(o)/sqrt(ncol(pmat))+eodds
           } else {
@@ -1242,8 +1238,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
         pmat <- pnorm((fcmat-r[gi-n+i])/rse[gi-n+i])
         p <- apply(pmat, 1, function(p) {sum(p*gw)})
         o <- log(p/(1-p), 10)
-        o[o < log(minprob, 10)] <- -6 
-        o[o > -log(minprob, 10)] <- 6
+        o[o < log(minprob, 10)] <- log(minprob, 10) 
+        o[o > -log(minprob, 10)] <- -log(minprob, 10)
         return(o)
       }
       if (ebcfun != FALSE) {
@@ -1286,8 +1282,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
             }
             p <- apply(pmat, 2, function(p) {sum(p*gw)})
             o <- log(p/(1-p), 10)
-            o[o < log(minprob, 10)] <- -6 
-            o[o > -log(minprob, 10)] <- 6
+            o[o < log(minprob, 10)] <- log(minprob, 10) 
+            o[o > -log(minprob, 10)] <- -log(minprob, 10)
             if (ebcfun != FALSE) {
               sum(o)/sqrt(ncol(pmat))+eodds
             } else {
@@ -1329,8 +1325,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
               }
               p <- apply(pmat, 2, function(p) {sum(p*gw)})
               o <- log(p/(1-p), 10)
-              o[o < log(minprob, 10)] <- -6 
-              o[o > -log(minprob, 10)] <- 6
+              o[o < log(minprob, 10)] <- log(minprob, 10) 
+              o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
                 sum(o)/sqrt(ncol(pmat))+eodds
               } else {
@@ -1364,8 +1360,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
               }
               p <- apply(pmat, 2, function(p) {sum(p*gw)})
               o <- log(p/(1-p), 10)
-              o[o < log(minprob, 10)] <- -6 
-              o[o > -log(minprob, 10)] <- 6
+              o[o < log(minprob, 10)] <- log(minprob, 10) 
+              o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
                 sum(o)/sqrt(ncol(pmat))+eodds
               } else {
@@ -1399,8 +1395,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
         }
         p <- apply(pmat, 2, function(p) {sum(p*gw)})
         o <- log(p/(1-p), 10)
-        o[o < log(minprob, 10)] <- -6 
-        o[o > -log(minprob, 10)] <- 6
+        o[o < log(minprob, 10)] <- log(minprob, 10) 
+        o[o > -log(minprob, 10)] <- -log(minprob, 10)
         if (ebcfun != FALSE) {
           sum(o)/sqrt(ncol(pmat))+eodds
         } else {
@@ -1424,8 +1420,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
           }
           p <- apply(pmat, 2, function(p) {sum(p*gw)})
           o <- log(p/(1-p), 10)
-          o[o < log(minprob, 10)] <- -6 
-          o[o > -log(minprob, 10)] <- 6
+          o[o < log(minprob, 10)] <- log(minprob, 10) 
+          o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
             sum(o)/sqrt(ncol(pmat))+eodds
           } else {
@@ -1446,8 +1442,8 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
           }
           p <- apply(pmat, 2, function(p) {sum(p*gw)})
           o <- log(p/(1-p), 10)
-          o[o < log(minprob, 10)] <- -6 
-          o[o > -log(minprob, 10)] <- 6
+          o[o < log(minprob, 10)] <- log(minprob, 10) 
+          o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
             sum(o)/sqrt(ncol(pmat))+eodds
           } else {

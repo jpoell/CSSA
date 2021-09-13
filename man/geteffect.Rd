@@ -8,11 +8,11 @@
 \usage{
 geteffect_c(guides, t1, t0, normfun = "sum", normsubset, a, g, gw,
   gl = 11, subset, effectrange, output = "range", exactci = FALSE,
-  semiexact = FALSE, ebcfun = "max", minprob = 10^-6)
+  semiexact = FALSE, ebcfun = "max", minprob = 10^-20)
 
 geteffect_r(guides, r, rse, a, g, gw, gl = 11, subset, effectrange,
   output = "range", exactci = FALSE, semiexact = FALSE,
-  ebcfun = "max", minprob = 10^-6)
+  ebcfun = "max", minprob = 10^-20)
 }
 \arguments{
 \item{guides}{Character vector. Guides are assumed to start with the gene
@@ -49,8 +49,8 @@ be created to roughly represent guide efficacy distribution in
 return output. All features will be used for empirical Bayes correction.}
 
 \item{effectrange}{Numeric vector. Sequence of effect values to test. If
-omitted, a range will be calculated based on the most highest and lowest
-rate ratios in the data set.}
+omitted, a range will be calculated based on the highest and lowest rate
+ratios in the data set.}
 
 \item{output}{Character string. Specify which output to generate. Can be
 either "range", "exact", or "both". Default = "range"}
@@ -73,7 +73,7 @@ correction is performed, which will generally lead to overestimation of
 negative effects. Default = "max"}
 
 \item{minprob}{Numeric. Cutoff point for the lowest considered likelihood.
-Default = 10^-6}
+Default = 10^-20}
 
 \item{r}{Numeric vector. Log2-transformed rate ratios}
 
@@ -108,7 +108,7 @@ geteffect uses all guides targeting a gene, and incorporates the
   are corrected for the prior probability of the effect value, which is
   interpolated from the data using the \code{ebcfun}. The best estimate of
   effect value for a gene is when the probability of being lower or higher
-  than that effect value or equal, and therefore the log-odds are 0. Beside
+  than that effect value or equal, and therefore the log-odds are 0. Besides
   the estimates at the predefined effect values, closer estimations for each
   gene (or a subset of the data set) may be obtained in the form of exact or
   semiexact values.
@@ -143,10 +143,6 @@ While the calculations on the ranged output are fully vectorized, the
 
   A minimum likelihood was introduced with the \code{minprob} option to
   prevent Inf and -Inf results. This may prevent errors and help plotting.
-  But also from a biological perspective it makes sense. There is perhaps a
-  chance that a guide creates an off-target knockout with a stronger effect
-  than possible with the gene it is supposed to target. Setting
-  \code{minprob} to a lower number can help with sensitivity in a few cases.
 
   The sum of the log-odds is divided by the square root of the number of
   guides. Therefore, it is not the odds of this particular gene having a more

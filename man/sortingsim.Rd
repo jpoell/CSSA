@@ -118,7 +118,7 @@ Returns a data frame with every row representing a single guide.
 }
 \description{
 sortingsim simulates a selection-based CRISPR-Cas9 pooled screen with
-user-defined parameters. In a way, this is simplified version of
+user-defined parameters. In a way, this is a simplified version of
 \code{\link{CRISPRsim}}, because there is no simulation of growth and
 passaging. It is about entering into an assay with a number of cells, and
 collecting the selected and unselected cells for sequencing. This was mainly
