@@ -926,9 +926,9 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
         return(o)
       }
       if (ebcfun != FALSE) {
-        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds
+        if (n==1) {odf+effectodds} else {apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds}
       } else {
-        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})
+        if (n==1) {odf} else {apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})}
       }
     }
     allodds <- as.data.frame(t(round(allodds, digits = 3)))
@@ -1243,9 +1243,9 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
         return(o)
       }
       if (ebcfun != FALSE) {
-        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds
+        if (n==1) {odf+effectodds} else {apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})+effectodds}
       } else {
-        apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})
+        if (n==1) {odf} else {apply(odf, 1, function(x) {sum(x)/sqrt(length(x))})}
       }
       
     }
