@@ -1495,11 +1495,11 @@ approximate <- function(fun, solution, from, to, steps, depth) {
 }
 
 semiexact <- function(range, o) {
-  apply(range, 1, function(x) {
+  as.numeric(apply(range, 1, function(x) {
     l <- tail(which(x < o), 1)
     h <- head(which(x > o), 1)
     lo <- as.numeric(names(x)[l])
     hi <- as.numeric(names(x)[h])
     lo + (hi-lo)*(10^(x[l]+x[h]-2*o) / (1 + 10^(x[l]+x[h]-2*o)))
-  })
+  }))
 }
