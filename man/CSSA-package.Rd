@@ -6,7 +6,7 @@
 \alias{CSSA}
 \title{CSSA: Analysis and Simulation Tools for CRISPR-Cas9 Pooled Screens}
 \description{
-CSSA contains a number of functions to analyze and simulate pooled
+CSSA contains a number of functions to analyze and simulation pooled
 CRISPR-Cas9-based screens. The simulators, represented by the CRISPRsim and
 sortingsim functions, offer an easy but also highly customizable tool to
 create data with guide- and gene-specific variables that can be randomly
@@ -29,19 +29,6 @@ rate ratios and duration of the experiment.
 \item{\code{\link{getdeg}}}{Derive growth-modifying effect of gene knockout in pooled experiments}
 \item{\code{\link{ess}}}{Get a list of essential genes or corresponding indices in the data set}
 \item{\code{\link{noness}}}{Get a list of nonessential genes or corresponding indices in the data set}
-}
-}
-
-\section{additional functions}{
-
-\describe{
-\item{\code{\link{sortingsim}}}{Simulate a selection-based CRISPR-Cas9 pooled screen}
-\item{\code{\link{oddscores}}}{Calculate odds per guide}
-\item{\code{\link{geneodds}}}{Calculate odds per gene}
-\item{\code{\link{odds2pq}}}{Calculate p-values and q-values for odds}
-\item{\code{\link{geteffect}}}{Approximate effect of gene knockout on growth}
-\item{\code{\link{rrep}}}{Calculate rate ratios with standard error of count data based on replicates}
-\item{\code{\link{degrep}}}{Derive growth-modifying effect of gene knockout in pooled experiments with replicate arms}
 }
 }
 

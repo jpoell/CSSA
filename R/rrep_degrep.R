@@ -16,8 +16,11 @@
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
 #' @param rstat Character string. Specify whether rate ratios are calculated
-#'   over the sum of the counts in replicates or as the mean of the log2 rate
-#'   ratios. Default = "summed"
+#'   over the sum of the counts in replicates or as the median or mean of the
+#'   log2 rate ratios. Default = "summed"
+#' @param variance Character string. Specify how to calculate variance: using
+#'   only \code{count} variance, only \code{replicate} variance, or the both
+#'   \code{combined}. Default = "combined"
 #'
 #' @details This function combines the confidence based on replicate
 #'   measurements with the confidence based on counts (e.g. read depth).
@@ -32,8 +35,11 @@
 #' @return Returns a data frame with the log2-transformed rate ratio and
 #'   corresponding standard error of each feature.
 #'
-#' @note If the data contain zeros, a pseudocount of 1/replicates is added to
-#'   all counts.
+#' @note Counts are checked for zeros per feature (row). In case of any zeros, a
+#'   pseudocount of 1/replicates is added to all counts in that row. These
+#'   pseudocounts are not included in the normalization on the bases of total
+#'   counts (of all features are the normalization subset) in an experimental
+#'   arm
 #'
 #' @seealso \code{\link{degrep}}, \code{\link{CRISPRsim}}, \code{\link{ess}},
 #'   \code{\link{noness}}
@@ -54,7 +60,8 @@
 #'
 #' @export
 
-rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "summed") {
+rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, 
+                 rstat = "summed", variance = "combined") {
   fun <- get(normfun)
   if (!missing(normsubset)) {
     sr0 <- apply(t0[normsubset,], 2, fun)
@@ -75,32 +82,56 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, rstat = "su
     stop("In paired analysis both arms need equal number of replicates")
   }
   
-  rse <- mapply(function(i) {
-    if (any(c(t1[i,], t0[i,])==0)) {
-      c1 <- as.numeric(t1[i,]+1/reps1)
-      c0 <- as.numeric(t0[i,]+1/reps0)
-    } else {
-      c1 <- as.numeric(t1[i,])
-      c0 <- as.numeric(t0[i,])
-    }
+  c1 <- apply(cbind(t1,t0), 1, function(x) {
+    if (any(x==0)) x[1:reps1]+1/reps1 else x[1:reps1]
+  })
+  c0 <- apply(cbind(t0,t1), 1, function(x) {
+    if (any(x==0)) x[1:reps0]+1/reps0 else x[1:reps0]
+  })
+  
+  if (any(!is.numeric(cbind(c1,c0)))) {
+    stop("Make sure all cells of t0 and t1 are numeric")
+  }
+  
+  if (paired == TRUE) {
     if (rstat == "summed") {
-      r <- (log((sum(c1)/sum(sr1))/(sum(c0)/sum(sr0)), 2))
+      r <- log((apply(c1, 2, sum)/sum(sr1))/(apply(c0, 2, sum)/sum(sr0)), 2)
+    } else if (rstat == "median") {
+      r <- apply(log((c1/sr1)/(c0/sr0), 2), 2, median)
+    } else if (rstat == "mean") {
+      r <- apply(log((c1/sr1)/(c0/sr0), 2), 2, mean)
     } else {
-      r <- mean(log(c1/sr1, 2)) - mean(log(c0/sr0, 2))
+      stop ("Invalid rstat: choose from summed, mean or median")
     }
-    if (paired == TRUE) {
-      varcount <- sum(c(1/(log(2)^2*c0), 1/(log(2)^2*c1)))/reps1
-      varrep <- sd(log(c1/sr1, 2) - log(c0/sr0, 2))^2
-      se <- sqrt((varcount+varrep)/reps1)
+    varcount <- apply(rbind(c1, c0), 2, function(x) sum(1/(log(2)^2*x)))/reps1
+    varrep <- apply(log((c1/sr1)/(c0/sr0), 2), 2, var)
+    if (variance == "count") {
+      se <- sqrt(varcount/reps1)
+    } else if (variance == "replicates") {
+      se <- sqrt(varrep/reps1)
     } else {
-      varcount <- mean(1/(log(2)^2*c0)) + mean(1/(log(2)^2*c1))
-      varrep <- sd(log(c1/sr1, 2))^2 + sd(log(c0/sr0, 2))^2
+      se <- sqrt((varcount+varrep)/reps1)
+    }
+  } else {
+    if (rstat == "summed") {
+      r <- log((apply(c1, 2, sum)/sum(sr1))/(apply(c0, 2, sum)/sum(sr0)), 2)
+    } else if (rstat == "median") {
+      r <- apply(log((c1/sr1), 2), 2, median) - apply(log((c0/sr0), 2), 2, median)
+    } else if (rstat == "mean") {
+      r <- apply(log((c1/sr1), 2), 2, mean) - apply(log((c0/sr0), 2), 2, mean)
+    } else {
+      stop ("Invalid rstat: choose from summed, mean or median")
+    }
+    varcount <- apply(c1, 2, function(x) mean(1/(log(2)^2*x))) + apply(c0, 2, function(x) mean(1/(log(2)^2*x)))
+    varrep <- apply(log(c1/sr1, 2), 2, var) + apply(log(c0/sr0, 2), 2, var)
+    if (variance == "count") {
+      se <- sqrt(varcount/min(reps0,reps1))
+    } else if (variance == "replicates") {
+      se <- sqrt(varrep/min(reps0,reps1))
+    } else {
       se <- sqrt((varcount+varrep)/min(reps0,reps1))
     }
-    return(list(r=r, se=se))
-  }, seq_len(nrow(t1)))
-  r <- unlist(rse[1,])
-  se <- unlist(rse[2,])
+  }
   
   return(data.frame(r=r,se=se))
 }

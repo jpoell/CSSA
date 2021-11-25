@@ -5,7 +5,7 @@
 \title{Calculate rate ratios with standard error of count data based on replicates}
 \usage{
 rrep(t1, t0, paired = TRUE, normfun = "sum", normsubset,
-  rstat = "summed")
+  rstat = "summed", variance = "combined")
 }
 \arguments{
 \item{t1}{Matrix or data frame, with rows representing features and columns
@@ -23,8 +23,12 @@ the data. Default = "sum"}
 be used in standardization}
 
 \item{rstat}{Character string. Specify whether rate ratios are calculated
-over the sum of the counts in replicates or as the mean of the log2 rate
-ratios. Default = "summed"}
+over the sum of the counts in replicates or as the median or mean of the
+log2 rate ratios. Default = "summed"}
+
+\item{variance}{Character string. Specify how to calculate variance: using
+only \code{count} variance, only \code{replicate} variance, or the both
+\code{combined}. Default = "combined"}
 }
 \value{
 Returns a data frame with the log2-transformed rate ratio and
@@ -49,8 +53,11 @@ This function combines the confidence based on replicate
   \code{1/(log(2)^2*count)}
 }
 \note{
-If the data contain zeros, a pseudocount of 1/replicates is added to
-  all counts.
+Counts are checked for zeros per feature (row). In case of any zeros, a
+  pseudocount of 1/replicates is added to all counts in that row. These
+  pseudocounts are not included in the normalization on the bases of total
+  counts (of all features are the normalization subset) in an experimental
+  arm
 }
 \examples{
   set.seed(1000)

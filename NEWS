@@ -1,7 +1,13 @@
+Changes in version 0.1.7 (2021-11-25)
+-------------------------------------
+
+o properly vectorized rrep (it is a lot faster now)
+
+
 Changes in version 0.1.6 (2021-03-15)
 -------------------------------------
 
-o Added function geteffect
+o Added function geteffect (it's a biggy!)
 
 
 Changes in version 0.1.5 (2021-02-04)
