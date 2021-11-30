@@ -74,8 +74,9 @@ number of guides}
 TRUE, 1 in 1000 guides (0.001) will target a different gene. Default =
 FALSE}
 
-\item{allseed}{Integer. If specified, all unspecified seeds default to this.
-Default = NULL}
+\item{allseed}{Integer. All unspecified seeds default to this plus an
+increment of 1 for each different seed. Defaults to NULL, in which case the
+unspecified seeds are randomly generated. Default = NULL}
 
 \item{gseed}{Integer. Specify seed for guide effiency assignment}
 

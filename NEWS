@@ -1,7 +1,13 @@
+Changes in version 0.1.8 (2021-11-30)
+-------------------------------------
+
+o Now using withr::with_seed for setting seeds in simulators
+
+
 Changes in version 0.1.7 (2021-11-25)
 -------------------------------------
 
-o properly vectorized rrep (it is a lot faster now)
+o Properly vectorized rrep (it is a lot faster now)
 
 
 Changes in version 0.1.6 (2021-03-15)

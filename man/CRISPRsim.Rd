@@ -77,8 +77,9 @@ number of guides}
 TRUE, 1 in 1000 guides (0.001) will target a different gene. Default =
 FALSE}
 
-\item{allseed}{Integer. If specified, all unspecified seeds default to this.
-Default = NULL}
+\item{allseed}{Integer. All unspecified seeds default to this plus an
+increment of 1 for each different seed. Defaults to NULL, in which case the
+unspecified seeds are randomly generated. Default = NULL}
 
 \item{gseed}{Integer. Specify seed for guide effiency assignment}
 
@@ -125,7 +126,7 @@ Returns a data frame with every row representing a single guide.
   Contains the pertinent parameters of each guide and the number of
   sequencing reads on t0 and all other sampling time points. If the argument
   returnall is set to TRUE, the function also returns a data frame with the
-  true values for the genes, and lists all parameters as well
+  true values for the genes, and lists all parameters as well.
 }
 \description{
 CRISPRsim simulates a CRISPR-Cas9 pooled screen with user-defined parameters.
@@ -149,7 +150,7 @@ CRISPRsim performs a genome-wide (or subsetted) pooled CRISPR
   effect, et cetera. You can give it a spin, but I highly recommend checking
   out the documentation for the available parameters! Especially seeds can be
   relevant for a proper simulation. You can easily "practice" by simulating
-  some small experiments. The basis of the simulation are as follows. Between
+  some small experiments. The basis of the simulation is as follows. Between
   time points cells with a certain knockout grow according to formula
   \code{cellsout = cellsin*2^((grm+d+e)*a))} Each guide has an efficacy,
   which is the chance to create a successful knockout. The cellsin is
@@ -159,6 +160,15 @@ CRISPRsim performs a genome-wide (or subsetted) pooled CRISPR
   the pairs are pooled in terms of sequencing reads. grm is the growth rate
   modifier and is generally 1, but it can be lowered to more properly
   simulate resistance screens.
+}
+\note{
+Seeds are set using \code{\link[withr]{with_seed}} from the
+  \code{\link[withr:withr-package]{withr package}}, thus leaving any
+  pre-existing seed intact. Avoid using the same seeds for different
+  arguments. If dseed and eseed are identical, the resulting values for d and
+  e will have a distinct pattern of correlation. In this case, CRISPRsim will
+  throw a warning. Given or generated seeds are returned when the option
+  returnall is set to TRUE.
 }
 \examples{
 simdf <- CRISPRsim(18000, 4, a = c(3,3), e = TRUE, perfectsampling = TRUE)

@@ -87,8 +87,9 @@
 #' @param offtargets Logical or numeric. Specify the fraction of off-targets. If
 #'   TRUE, 1 in 1000 guides (0.001) will target a different gene. Default =
 #'   FALSE
-#' @param allseed Integer. If specified, all unspecified seeds default to this.
-#'   Default = NULL
+#' @param allseed Integer. All unspecified seeds default to this plus an
+#'   increment of 1 for each different seed. Defaults to NULL, in which case the
+#'   unspecified seeds are randomly generated. Default = NULL 
 #' @param gseed Integer. Specify seed for guide effiency assignment
 #' @param fseed Integer. Specify seed for infectious units assignment, which
 #'   dictates a guide's abundance at the start of the experiment
@@ -153,7 +154,7 @@
 #'   selectedcells
 #'
 #' @author Jos B. Poell
-#' 
+#'
 #' @seealso \code{\link{oddscores}}, \code{\link{CRISPRsim}}
 #'
 #' @examples
@@ -178,9 +179,10 @@ sortingsim <- function(genes, guides, g, f, d, e, baseprob = 0.1,
                        repseed, perfectsampling = FALSE, 
                        perfectseq, returnall = FALSE, 
                        outputfile) {
+  
   if(missing(perfectseq)) {perfectseq <- perfectsampling}
   baseodds <- baseprob/(1-baseprob)
-  if (!missing(allseed)) {set.seed(allseed)}
+  
   if (missing(genes)) {
     if (!missing(guides) && is(guides, "character")) {
       genes <- rle(gsub("_.*", "", guides))$values
@@ -212,16 +214,24 @@ sortingsim <- function(genes, guides, g, f, d, e, baseprob = 0.1,
     }
   }
   
-  if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
-  if (missing(g)) {
-    message("guide efficiency is randomly sampled from an empirical distribution")
-    bg <- floor(length(guides)/40)
-    g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
-  } else if (length(g)==1) {
-    g <- rep(g, length(guides))
-  } else if (length(g) != length(guides)) {
-    g <- sample(g, length(guides), replace = TRUE)
-  } 
+  if (missing(gseed)) {
+    if (is.null(allseed)) {
+      gseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      gseed <- allseed
+    }
+  }
+  with_seed(gseed, {
+    if (missing(g)) {
+      message("guide efficiency is randomly sampled from an empirical distribution")
+      bg <- floor(length(guides)/40)
+      g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
+    } else if (length(g)==1) {
+      g <- rep(g, length(guides))
+    } else if (length(g) != length(guides)) {
+      g <- sample(g, length(guides), replace = TRUE)
+    } 
+  })
   
   if (any(g < 0) || any(g > 1)) {
     warning("g represents guide efficacy and should be a number between 0 and 1; values have been constrained")
@@ -229,108 +239,128 @@ sortingsim <- function(genes, guides, g, f, d, e, baseprob = 0.1,
     g[g > 1] <- 1
   }
   
-  if (!missing(fseed)) {
-    set.seed(fseed)
-  } else if (!is.null(gseed)) {
-    fseed <- gseed+1
-    set.seed(fseed)
-  } else {
-    # no need in resetting the seed when it's NULL
-    fseed <- NULL
+  if (missing(fseed)) {
+    if (is.null(allseed)) {
+      fseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      fseed <- allseed+1
+    }
   }
-  if (missing(f)) {
-    message("guide abundance (library representation) is randomly assigned")
-    # The allseed is shifted to ascertain randomness between g and f
-    
-    f <- 2^rnorm(length(guides))
-  } else if (length(f) == 1) {
-    f <- rep(1, length(guides))
-    message("assuming equal abundance for all guides")
-  } else if (length(f) != length(guides)) {
-    f <- sample(f, length(guides), replace = TRUE)
-  } 
+  with_seed(fseed, {
+    if (missing(f)) {
+      message("guide abundance (library representation) is randomly assigned")
+      # The allseed is shifted to ascertain randomness between g and f
+      
+      f <- 2^rnorm(length(guides))
+    } else if (length(f) == 1) {
+      f <- rep(1, length(guides))
+      message("assuming equal abundance for all guides")
+    } else if (length(f) != length(guides)) {
+      f <- sample(f, length(guides), replace = TRUE)
+    }
+  })
   
-  if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
-  if (missing(d) || (length(d) == 1 && d == TRUE)) {
-    message("effect of gene knockout is randomly sampled from an empirical distribution")
-    if (missing(hitsup)) {hitsup <- 1-baseprob}
-    oddsup <- floor(length(genes)*hitfraction*hitsup)
-    oddsdown <- floor(length(genes)*hitfraction*(1-hitsup))
-    lod <- sample(c(rnorm(oddsup, log(hitfactor), abs(log(hitfactor)/3)), 
-                  rnorm(oddsdown, -log(hitfactor), abs(log(hitfactor)/3)),
-                  rnorm(length(genes)-oddsup-oddsdown, 0, abs(log(hitfactor)/6))))
-    d <- exp(lod)
-  } else if (length(d)==1) {
-    message("assuming equal d for all genes. 
-            Note that you can enter custom d-values by providing a vector with length equal to the number of genes, 
-            or a vector with unequal size from which will be sampled")
-    d <- rep(d, length(genes))
-    
-  } else if (length(d) != length(genes)) {
-    d <- sample(d, length(genes), replace = TRUE)
+  if (missing(dseed)) {
+    if (is.null(allseed)) {
+      dseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      dseed <- allseed+2
+    }
   }
-  unique_d <- d
-  d <- rep(d, n)
+  with_seed(dseed, {
+    if (missing(d) || (length(d) == 1 && d == TRUE)) {
+      message("effect of gene knockout is randomly sampled from an empirical distribution")
+      if (missing(hitsup)) {hitsup <- 1-baseprob}
+      oddsup <- floor(length(genes)*hitfraction*hitsup)
+      oddsdown <- floor(length(genes)*hitfraction*(1-hitsup))
+      lod <- sample(c(rnorm(oddsup, log(hitfactor), abs(log(hitfactor)/3)), 
+                      rnorm(oddsdown, -log(hitfactor), abs(log(hitfactor)/3)),
+                      rnorm(length(genes)-oddsup-oddsdown, 0, abs(log(hitfactor)/6))))
+      d <- exp(lod)
+    } else if (length(d)==1) {
+      message("assuming equal d for all genes. 
+              Note that you can enter custom d-values by providing a vector with length equal to the number of genes, 
+              or a vector with unequal size from which will be sampled")
+      d <- rep(d, length(genes))
+      
+    } else if (length(d) != length(genes)) {
+      d <- sample(d, length(genes), replace = TRUE)
+    }
+    unique_d <- d
+    d <- rep(d, n)
+  })
+  
   
   if (any(is.na(d)) || any(is.null(d)) || any(is.character(d))) {
     stop("This is not going to go well, not all d-values are numeric!")
   }
   
   if (!missing(e)) {
-    if (!missing(eseed)) {
-      set.seed(eseed)
-    } else if (!is.null(dseed)) {
-      eseed <- dseed+1
-      set.seed(eseed)
-    } else {
-      # no need in resetting the seed when it's NULL
-      eseed <- NULL
+    if (missing(eseed)) {
+      if (is.null(allseed)) {
+        eseed <- sample.int(.Machine$integer.max, 1L)
+      } else {
+        eseed <- allseed+3
+      }
     }
-    if (length(e) == 1 && e == TRUE) {
-      message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
-      # The allseed should not be exactly the same between d and e, because it
-      # would sample exactly the same order and create huge biases. Therefore I
-      # add 1 to the seed!
-      
-      if (missing(efraction)) {efraction <- hitfraction}
-      if (missing(eup)) {eup <- 0.5}
-      if (missing(efactor)) {efactor <- hitfactor}
-      oddsup <- floor(length(genes)*efraction*eup)
-      oddsdown <- floor(length(genes)*efraction*(1-eup))
-      loe <- sample(c(rnorm(oddsup, log(efactor), abs(log(efactor)/3)), 
-                      rnorm(oddsdown, -log(efactor), abs(log(efactor)/3)),
-                      rnorm(length(genes)-oddsup-oddsdown, 0, abs(log(efactor)/6))))
-      # Note that e is kept as odds, since it is a modifier of d
-      e <- exp(loe)
-      
-    } else if (length(e) != length(genes)) {
-      
-      e <- sample(e, length(genes), replace = TRUE)
+    if (round(dseed) == round(eseed)) {
+      warning("d and e sampled using identical seeds: expect weirdly correlated results")
     }
-    unique_e <- e
-    e <- rep(e, n)
-    if (any(is.na(e)) || any(is.null(e)) || any(is.character(e))) {
-      stop("This is not going to go well, not all e-values are numeric!")
-    }
+    with_seed(eseed, {
+      if (length(e) == 1 && e == TRUE) {
+        message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
+        # The allseed should not be exactly the same between d and e, because it
+        # would sample exactly the same order and create huge biases. Therefore I
+        # add 1 to the seed!
+        
+        if (missing(efraction)) {efraction <- hitfraction}
+        if (missing(eup)) {eup <- 0.5}
+        if (missing(efactor)) {efactor <- hitfactor}
+        oddsup <- floor(length(genes)*efraction*eup)
+        oddsdown <- floor(length(genes)*efraction*(1-eup))
+        loe <- sample(c(rnorm(oddsup, log(efactor), abs(log(efactor)/3)), 
+                        rnorm(oddsdown, -log(efactor), abs(log(efactor)/3)),
+                        rnorm(length(genes)-oddsup-oddsdown, 0, abs(log(efactor)/6))))
+        # Note that e is kept as odds, since it is a modifier of d
+        e <- exp(loe)
+        
+      } else if (length(e) != length(genes)) {
+        
+        e <- sample(e, length(genes), replace = TRUE)
+      }
+      unique_e <- e
+      e <- rep(e, n)
+      if (any(is.na(e)) || any(is.null(e)) || any(is.character(e))) {
+        stop("This is not going to go well, not all e-values are numeric!")
+      }
+    })
   }
   
   offtarget_guides <- rep(0, length(genes))
   
-  if (!missing(oseed)) {set.seed(oseed)} else {oseed <- allseed; set.seed(oseed)}
+  if (missing(oseed)) {
+    if (is.null(allseed)) {
+      oseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      oseed <- allseed+4
+    }
+  }
   if (offtargets != FALSE) {
-    if (offtargets == TRUE) {offtargets <- 0.001}
-    tochange <- which(runif(length(guides)) < offtargets)
-    changeto <- round(runif(length(tochange))*length(genes)+0.5)
-    d[tochange] <- unique_d[changeto]
-    if (!missing(e)) {
-      e[tochange] <- unique_e[changeto]
-    }
-    off_per_gene <- sapply(tochange, function(x) {
-      min(which(x <= cumsum(n)))
+    with_seed(oseed, {
+      if (offtargets == TRUE) {offtargets <- 0.001}
+      tochange <- which(runif(length(guides)) < offtargets)
+      changeto <- round(runif(length(tochange))*length(genes)+0.5)
+      d[tochange] <- unique_d[changeto]
+      if (!missing(e)) {
+        e[tochange] <- unique_e[changeto]
+      }
+      off_per_gene <- sapply(tochange, function(x) {
+        min(which(x <= cumsum(n)))
+      })
+      for (o in off_per_gene) {
+        offtarget_guides[o] <- offtarget_guides[o]+1
+      }
     })
-    for (o in off_per_gene) {
-      offtarget_guides[o] <- offtarget_guides[o]+1
-    }
   }
   
   # mod_prob is the probability of selection, potentially modified by e
@@ -358,46 +388,79 @@ sortingsim <- function(genes, guides, g, f, d, e, baseprob = 0.1,
     seqdepth <- 500*length(guides)
   }
   
+  
+  if (missing(t0seed)) {
+    if (is.null(allseed)) {
+      t0seed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      t0seed <- allseed+5
+    }
+  }
+  if (missing(repseed)) {
+    if (is.null(allseed)) {
+      repseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      repseed <- allseed+6
+    }
+  }
+  
   if (perfectsampling == TRUE) {
-    if (!missing(t0seed)) {set.seed(t0seed)} else {t0seed <- allseed; set.seed(t0seed)}
     cells <- round(c(f*g*sortedcells, f*(1-g)*sortedcells)/sum(f))
-    if (!missing(repseed)) {set.seed(repseed)} else {repseed <- allseed; set.seed(repseed)}
     kocells <- cells[seq_along(guides)]
     nkocells <- cells[seq(length(guides)+1, 2*length(guides))]
     koselected <- round(kocells*mod_prob)
     nkoselected <- round(nkocells*baseprob)
+    konotselected <- kocells - koselected
+    nkonotselected <- nkocells - nkoselected
+    selected <- koselected+nkoselected
+    notselected <- konotselected+nkonotselected
+    if (perfectseq == TRUE) {
+      readsselected <- round(selected*seqdepth/sum(selected))
+      readsnotselected <- round(notselected*seqdepth/sum(notselected))
+    } else {
+      with_seed(repseed, {
+        readsselected <- tabulate(c(seq_along(guides), 
+                                    sample(seq_along(guides),
+                                           seqdepth, replace = TRUE, 
+                                           prob = selected)))-1
+        readsnotselected <- tabulate(c(seq_along(guides), 
+                                       sample(seq_along(guides),
+                                              seqdepth, replace = TRUE, 
+                                              prob = notselected)))-1
+      })
+    }
   } else {
-    if (!missing(t0seed)) {set.seed(t0seed)} else {t0seed <- allseed; set.seed(t0seed)}
-    cells <- tabulate(c(seq_along(c(guides,guides)),
-                         sample(seq_along(c(guides,guides)), sortedcells,
-                                replace = TRUE, prob = c(f*g, f*(1-g)))))-1
-    kocells <- cells[seq_along(guides)]
-    nkocells <- cells[seq(length(guides)+1, 2*length(guides))]
-    if (!missing(repseed)) {set.seed(repseed)} else {repseed <- allseed; set.seed(repseed)}
-    koselected <- mapply(function(cells, chance) {rbinom(1,cells,chance)},kocells,mod_prob)
-    nkoselected <- mapply(function(cells, chance) {rbinom(1,cells,chance)},nkocells,baseprob)
+    with_seed(t0seed, {
+      cells <- tabulate(c(seq_along(c(guides,guides)),
+                          sample(seq_along(c(guides,guides)), sortedcells,
+                                 replace = TRUE, prob = c(f*g, f*(1-g)))))-1
+      kocells <- cells[seq_along(guides)]
+      nkocells <- cells[seq(length(guides)+1, 2*length(guides))]
+    })
+    with_seed(repseed, {
+      koselected <- mapply(function(cells, chance) {rbinom(1,cells,chance)},kocells,mod_prob)
+      nkoselected <- mapply(function(cells, chance) {rbinom(1,cells,chance)},nkocells,baseprob)
+      konotselected <- kocells - koselected
+      nkonotselected <- nkocells - nkoselected
+      selected <- koselected+nkoselected
+      notselected <- konotselected+nkonotselected
+      if (perfectseq == TRUE) {
+        readsselected <- round(selected*seqdepth/sum(selected))
+        readsnotselected <- round(notselected*seqdepth/sum(notselected))
+      } else {
+        readsselected <- tabulate(c(seq_along(guides), 
+                                    sample(seq_along(guides),
+                                           seqdepth, replace = TRUE, 
+                                           prob = selected)))-1
+        readsnotselected <- tabulate(c(seq_along(guides), 
+                                       sample(seq_along(guides),
+                                              seqdepth, replace = TRUE, 
+                                              prob = notselected)))-1
+      }
+    })
   }
   
-  konotselected <- kocells - koselected
-  nkonotselected <- nkocells - nkoselected
-  selected <- koselected+nkoselected
-  notselected <- konotselected+nkonotselected
-  
-  if (perfectseq == TRUE) {
-    readsselected <- round(selected*seqdepth/sum(selected))
-    readsnotselected <- round(notselected*seqdepth/sum(notselected))
-  } else {
-    readsselected <- tabulate(c(seq_along(guides), 
-                                sample(seq_along(guides),
-                                       seqdepth, replace = TRUE, 
-                                       prob = selected)))-1
-    readsnotselected <- tabulate(c(seq_along(guides), 
-                                   sample(seq_along(guides),
-                                          seqdepth, replace = TRUE, 
-                                          prob = notselected)))-1
-  }
-  
-  print("wrapping up")
+  message("wrapping up")
   
   if (missing(e)) {
     df <- data.frame(guides, gene = rep(genes, n), d, mod_prob, f, g, selected = readsselected, 

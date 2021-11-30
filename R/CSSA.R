@@ -22,6 +22,13 @@
 #' \item{\code{\link{getdeg}}}{Derive growth-modifying effect of gene knockout in pooled experiments}
 #' \item{\code{\link{ess}}}{Get a list of essential genes or corresponding indices in the data set}
 #' \item{\code{\link{noness}}}{Get a list of nonessential genes or corresponding indices in the data set}
+#' \item{\code{\link{sortingsim}}}{Simulate a selection-based CRISPR-Cas9 pooled screen}
+#' \item{\code{\link{oddscores}}}{Calculate odds per guide}
+#' \item{\code{\link{geneodds}}}{Calculate odds per gene}
+#' \item{\code{\link{odds2pq}}}{Calculate p-values and q-values for odds}
+#' \item{\code{\link{geteffect}}}{Approximate effect of gene knockout on growth}
+#' \item{\code{\link{rrep}}}{Calculate rate ratios with standard error of count data based on replicates}
+#' \item{\code{\link{degrep}}}{Derive growth-modifying effect of gene knockout in pooled experiments with replicate arms}
 #' }
 #' 
 #' @section License:
@@ -30,9 +37,10 @@
 #' @author Jos B. Poell
 #' 
 #' @importFrom methods is
-#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad
+#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad var
 #' @importFrom utils data head tail write.table
 #' @importFrom foreach foreach "%do%"
+#' @importFrom withr with_seed
 #' @docType package
 #' @name CSSA-package
 #' @aliases CSSA CSSA-package
@@ -103,8 +111,9 @@ NULL
 #' @param offtargets Logical or numeric. Specify the fraction of off-targets. If
 #'   TRUE, 1 in 1000 guides (0.001) will target a different gene. Default =
 #'   FALSE
-#' @param allseed Integer. If specified, all unspecified seeds default to this.
-#'   Default = NULL
+#' @param allseed Integer. All unspecified seeds default to this plus an
+#'   increment of 1 for each different seed. Defaults to NULL, in which case the
+#'   unspecified seeds are randomly generated. Default = NULL
 #' @param gseed Integer. Specify seed for guide effiency assignment
 #' @param fseed Integer. Specify seed for infectious units assignment, which
 #'   dictates a guide's abundance at the start of the experiment
@@ -141,7 +150,7 @@ NULL
 #'   effect, et cetera. You can give it a spin, but I highly recommend checking
 #'   out the documentation for the available parameters! Especially seeds can be
 #'   relevant for a proper simulation. You can easily "practice" by simulating
-#'   some small experiments. The basis of the simulation are as follows. Between
+#'   some small experiments. The basis of the simulation is as follows. Between
 #'   time points cells with a certain knockout grow according to formula
 #'   \code{cellsout = cellsin*2^((grm+d+e)*a))} Each guide has an efficacy,
 #'   which is the chance to create a successful knockout. The cellsin is
@@ -156,7 +165,15 @@ NULL
 #'   Contains the pertinent parameters of each guide and the number of
 #'   sequencing reads on t0 and all other sampling time points. If the argument
 #'   returnall is set to TRUE, the function also returns a data frame with the
-#'   true values for the genes, and lists all parameters as well
+#'   true values for the genes, and lists all parameters as well.
+#'
+#' @note Seeds are set using \code{\link[withr]{with_seed}} from the
+#'   \code{\link[withr:withr-package]{withr package}}, thus leaving any
+#'   pre-existing seed intact. Avoid using the same seeds for different
+#'   arguments. If dseed and eseed are identical, the resulting values for d and
+#'   e will have a distinct pattern of correlation. In this case, CRISPRsim will
+#'   throw a warning. Given or generated seeds are returned when the option
+#'   returnall is set to TRUE.
 #'
 #' @seealso \code{\link{sortingsim}}, \code{\link{radjust}}, \code{\link{rrep}},
 #'   \code{\link{jar}}, \code{\link{nestedradjust}}, \code{\link{doublejar}}
@@ -177,9 +194,8 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
                       seqdepth, offtargets = FALSE, allseed = NULL, gseed,
                       fseed, dseed, eseed, oseed, t0seed, repseed, grm = 1, 
                       em = 1, perfectsampling = FALSE, perfectseq = FALSE, 
-                      returnall = FALSE, outputfile) {
-
-  if (!missing(allseed)) {set.seed(allseed)}
+                      returnall = FALSE, outputfile) {  
+  
   if (missing(genes)) {
     if (!missing(guides) && is(guides, "character")) {
       genes <- rle(gsub("_.*", "", guides))$values
@@ -197,11 +213,11 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   if (cellreplace == FALSE) {
     message("keep in mind sampling without replacement can blow up your computer!")
   }
-
+  
   if (length(genes)==1 && (is(genes, "integer") || is(genes, "numeric"))) {
     genes <- paste0("gene", seq_len(genes))
   }
-
+  
   if (length(guides)==1 && (is(guides, "integer") || is(guides, "numeric"))) {
     n <- rep(guides, length(genes))
     guides <- as.vector(sapply(genes, function(x) {paste0(x, "_", seq_len(guides))}))
@@ -218,16 +234,24 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     }
   }
   
-  if (!missing(gseed)) {set.seed(gseed)} else {gseed <- allseed; set.seed(gseed)}
-  if (missing(g)) {
-    message("guide efficiency is randomly sampled from an empirical distribution")
-    bg <- floor(length(guides)/40)
-    g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
-  } else if (length(g)==1) {
-    g <- rep(g, length(guides))
-  } else if (length(g) != length(guides)) {
-    g <- sample(g, length(guides), replace = TRUE)
-  } 
+  if (missing(gseed)) {
+    if (is.null(allseed)) {
+      gseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      gseed <- allseed
+    }
+  }
+  with_seed(gseed, {
+    if (missing(g)) {
+      message("guide efficiency is randomly sampled from an empirical distribution")
+      bg <- floor(length(guides)/40)
+      g <- sample(c(1-runif(length(guides)-bg)^2.5, (runif(bg)/10)^5))
+    } else if (length(g)==1) {
+      g <- rep(g, length(guides))
+    } else if (length(g) != length(guides)) {
+      g <- sample(g, length(guides), replace = TRUE)
+    } 
+  })
   
   if (any(g < 0) || any(g > 1)) {
     warning("g represents guide efficacy and should be a number between 0 and 1; values have been constrained")
@@ -235,108 +259,120 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
     g[g > 1] <- 1
   }
   
-  if (!missing(fseed)) {
-    set.seed(fseed)
-  } else if (!is.null(gseed)) {
-    fseed <- gseed+1
-    set.seed(fseed)
-  } else {
-    # no need in resetting the seed when it's NULL
-    fseed <- NULL
+  if (missing(fseed)) {
+    if (is.null(allseed)) {
+      fseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      fseed <- allseed+1
+    }
   }
-  if (missing(f)) {
-    message("guide abundance (library representation) is randomly assigned")
-    # The allseed is shifted to ascertain randomness between g and f
-    
-    f <- 2^rnorm(length(guides))
-  } else if (length(f) == 1) {
-    f <- rep(1, length(guides))
-    message("assuming equal abundance for all guides")
-  } else if (length(f) != length(guides)) {
-    f <- sample(f, length(guides), replace = TRUE)
-  } 
+  with_seed(fseed, {
+    if (missing(f)) {
+      message("guide abundance (library representation) is randomly assigned")
+      f <- 2^rnorm(length(guides))
+    } else if (length(f) == 1) {
+      f <- rep(1, length(guides))
+      message("assuming equal abundance for all guides")
+    } else if (length(f) != length(guides)) {
+      f <- sample(f, length(guides), replace = TRUE)
+    } 
+  })
   
-  if (!missing(dseed)) {set.seed(dseed)} else {dseed <- allseed; set.seed(dseed)}
-  if (missing(d) || (length(d) == 1 && d == TRUE)) {
-    message("effect of gene knockout is randomly sampled from an empirical distribution")
-    
-    ll <- floor(length(genes)/8)
-    ml <- floor(length(genes)/3)
-    d <- sample(c(rnorm(ll, -0.8, 0.15), rnorm(ml, -0.25, 0.2),
-                  rnorm(length(genes)-ll-ml, -0.05, 0.05)))
-  } else if (length(d)==1) {
-    message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with length equal to the number of genes, or a vector with unequal size from which will be sampled")
-    d <- rep(d, length(genes))
-    
-  } else if (length(d) != length(genes)) {
-    d <- sample(d, length(genes), replace = TRUE)
-  } 
+  if (missing(dseed)) {
+    if (is.null(allseed)) {
+      dseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      dseed <- allseed+2
+    }
+  }
+  with_seed(dseed, {
+    if (missing(d) || (length(d) == 1 && d == TRUE)) {
+      message("effect of gene knockout is randomly sampled from an empirical distribution")
+      
+      ll <- floor(length(genes)/8)
+      ml <- floor(length(genes)/3)
+      d <- sample(c(rnorm(ll, -0.8, 0.15), rnorm(ml, -0.25, 0.2),
+                    rnorm(length(genes)-ll-ml, -0.05, 0.05)))
+    } else if (length(d)==1) {
+      message("assuming equal d for all genes. Note that you can enter custom d-values by providing a vector with length equal to the number of genes, or a vector with unequal size from which will be sampled")
+      d <- rep(d, length(genes))
+      
+    } else if (length(d) != length(genes)) {
+      d <- sample(d, length(genes), replace = TRUE)
+    } 
+  })
   
   if (!missing(e)) {
-    if (!missing(eseed)) {
-      set.seed(eseed)
-    } else if (!is.null(dseed)) {
-      eseed <- dseed+1
-      set.seed(eseed)
-    } else {
-      # no need in resetting the seed when it's NULL
-      eseed <- NULL
+    if (missing(eseed)) {
+      if (is.null(allseed)) {
+        eseed <- sample.int(.Machine$integer.max, 1L)
+      } else {
+        eseed <- allseed+3
+      }
     }
-    if (length(e) == 1 && e == TRUE) {
-      message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
-      # The allseed should not be exactly the same between d and e, because it
-      # would sample exactly the same order and create huge biases. Therefore I
-      # add 1 to the seed!
-      
-      ls <- ceiling(length(genes)/200)
-      lr <- ceiling(length(genes)/1000)
-      e <- sample(c(rnorm(ls, -0.7, 0.2), rnorm(lr, 0.7, 0.2),
-                    rnorm(length(genes)-ls-lr, 0, 0.05)))
-    } else if (length(e) != length(genes)) {
-      
-      e <- sample(e, length(genes), replace = TRUE)
+    if (round(dseed) == round(eseed)) {
+      warning("d and e sampled using identical seeds: expect weirdly correlated results")
     }
-    unique_e <- e
-    e <- rep(e, n)
-    if (any(is.na(e)) || any(is.null(e)) || any(is.character(e))) {
-      stop("This is not going to go well, not all e-values are numeric!")
-    }
+    with_seed(eseed, {
+      if (length(e) == 1 && e == TRUE) {
+        message("arm-specific effect modifier is randomly sampled from a distribution typical for a dropout screen")
+        
+        ls <- ceiling(length(genes)/200)
+        lr <- ceiling(length(genes)/1000)
+        e <- sample(c(rnorm(ls, -0.7, 0.2), rnorm(lr, 0.7, 0.2),
+                      rnorm(length(genes)-ls-lr, 0, 0.05)))
+      } else if (length(e) != length(genes)) {
+        
+        e <- sample(e, length(genes), replace = TRUE)
+      }
+      unique_e <- e
+      e <- rep(e, n)
+      if (any(is.na(e)) || any(is.null(e)) || any(is.character(e))) {
+        stop("This is not going to go well, not all e-values are numeric!")
+      }
+    })
   }
-
+  
   unique_d <- d
   d <- rep(d, n)
-
+  
   if (any(is.na(d)) || any(is.null(d)) || any(is.character(d))) {
     stop("This is not going to go well, not all d-values are numeric!")
   }
   
   offtarget_guides <- rep(0, length(genes))
   
-  if (!missing(oseed)) {set.seed(oseed)} else {oseed <- allseed; set.seed(oseed)}
-  if (offtargets != FALSE) {
-    if (offtargets == TRUE) {offtargets <- 0.001}
-    tochange <- which(runif(length(guides)) < offtargets)
-    changeto <- round(runif(length(tochange))*length(genes)+0.5)
-    d[tochange] <- unique_d[changeto]
-    if (!missing(e)) {
-      e[tochange] <- unique_e[changeto]
-    }
-    off_per_gene <- sapply(tochange, function(x) {
-      min(which(x <= cumsum(n)))
-    })
-    for (o in off_per_gene) {
-      offtarget_guides[o] <- offtarget_guides[o]+1
+  if (missing(oseed)) {
+    if (is.null(allseed)) {
+      oseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      oseed <- allseed+4
     }
   }
-  
-  
+  if (offtargets != FALSE) {
+    with_seed(oseed, {
+      if (offtargets == TRUE) {offtargets <- 0.001}
+      tochange <- which(runif(length(guides)) < offtargets)
+      changeto <- round(runif(length(tochange))*length(genes)+0.5)
+      d[tochange] <- unique_d[changeto]
+      if (!missing(e)) {
+        e[tochange] <- unique_e[changeto]
+      }
+      off_per_gene <- sapply(tochange, function(x) {
+        min(which(x <= cumsum(n)))
+      })
+      for (o in off_per_gene) {
+        offtarget_guides[o] <- offtarget_guides[o]+1
+      }
+    })
+  }
   
   if (!missing(e)) {
     gdf <- data.frame(genes, n, offtarget_guides, d = unique_d, e = unique_e)
   } else {
     gdf <- data.frame(genes, n, offtarget_guides, d = unique_d)
   }
-
+  
   if (missing(seededcells)) {
     message("assuming mean representation of 200 cells per guide")
     seededcells <- rep(200*length(guides), length(a)+1)
@@ -348,147 +384,161 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else if (length(harvestedcells) <= length(a)) {
     harvestedcells <- append(harvestedcells, rep(tail(harvestedcells, 1), length(a)+1-length(harvestedcells)))
   }
-
+  
   if (missing(seqdepth)) {
     message("assuming mean sequencing depth of 500 reads per guide")
     seqdepth <- rep(500*length(guides), length(a)+1)
   } else if (length(seqdepth) <= length(a)) {
     seqdepth <- append(seqdepth, rep(tail(seqdepth, 1), length(a)+1-length(seqdepth)))
   }
-
-  if (!missing(t0seed)) {set.seed(t0seed)} else {t0seed <- allseed; set.seed(t0seed)}
-
-  print("started with t0")
-  readmat <- matrix(ncol = length(seqdepth), nrow = length(guides))
-  # scells is a vector twice the length of the number of guides. The first half
-  # represents the cells with successful knockout of the targeted gene, the
-  # second half represents the cells without knockout of the targeted gene
-  if (perfectsampling == TRUE) {
-    scells <- round(c(f*g*seededcells[1], f*(1-g)*seededcells[1])/sum(f))
-    readmat[, 1] <- round(f*seqdepth[1]/sum(f))
-  } else {
-    scells <- tabulate(c(seq_along(c(guides,guides)),
-                         sample(seq_along(c(guides,guides)), seededcells[1],
-                                replace = TRUE, prob = c(f*g, f*(1-g)))))-1
-    hcells <- tabulate(c(seq_along(guides),
-                         sample(seq_along(guides), harvestedcells[1],
-                                replace = TRUE, prob = f)))-1
-    if (perfectseq == TRUE) {
-      readmat[, 1] <- round(hcells*seqdepth[1]/sum(hcells))
+  
+  if (missing(t0seed)) {
+    if (is.null(allseed)) {
+      t0seed <- sample.int(.Machine$integer.max, 1L)
     } else {
-      readmat[, 1] <- tabulate(c(seq_along(guides),
-                                 sample(seq_along(guides), seqdepth[1],
-                                        replace = TRUE, prob = hcells)))-1
+      t0seed <- allseed+5
     }
   }
-
-  colnames(readmat) <- c("t0", paste0("t", cumsum(a)))
-
-  if (!missing(repseed)) {set.seed(repseed)} else {repseed <- allseed; set.seed(repseed)}
-
-  kocells <- scells[seq_along(guides)]
-  nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
-  st <- 0
-  grme <- 1+grm*em-em
-  for (t in seq_along(a)) {
-    print(paste0("started with t", sum(a[seq(1,t)])))
-
-    if (missing(e) || length(e) == 1) {
-      cellpool <- mapply(function(stud, dud, d) {
-        kocells <- round(stud*2^((1+d)*a[t]))
-        nkocells <- round(dud*2^a[t])
-        return(list(kocells = kocells, nkocells = nkocells))
-      }, kocells, nkocells, d)
-    } else {
-      if (treatmentdelay < t) {st <- 1}
-      cellpool <- mapply(function(stud, dud, d, e) {
-        kocells <- round(stud*2^((grme^st+d+e)*a[t]))
-        nkocells <- round(dud*2^(grme^st*a[t]))
-        return(list(kocells = kocells, nkocells = nkocells))
-      }, kocells, nkocells, d, e*st*em)
-    }
-
-    # Note: the vector hpool is made immediately. Not so the vectors kocells and
-    # nkocells. These are reserved for newly sampled batches, to be used in the
-    # next iteration of the loop. If the kocells or nkocells are needed, they
-    # are unlisted from cellpool.
-    hpool <- unlist(cellpool[1,])+unlist(cellpool[2,])
-    neededcells <- seededcells[t+1] + harvestedcells[t+1]
-    if (neededcells > sum(hpool)) {
-      warning(paste0("not enough cells at t", t))
-      seededcells[t+1] <- floor(sum(hpool)*seededcells[t+1]/neededcells)
-      harvestedcells[t+1] <- floor(sum(hpool)*harvestedcells[t+1]/neededcells)
-    }
+  with_seed(t0seed, {
+    message("started with t0")
+    readmat <- matrix(ncol = length(seqdepth), nrow = length(guides))
+    # scells is a vector twice the length of the number of guides. The first half
+    # represents the cells with successful knockout of the targeted gene, the
+    # second half represents the cells without knockout of the targeted gene
     if (perfectsampling == TRUE) {
-      kocells <- round(unlist(cellpool[1,])*seededcells[t+1]/sum(hpool))
-      nkocells <- round(unlist(cellpool[2,])*seededcells[t+1]/sum(hpool))
-      readmat[, t+1] <- round(hpool*seqdepth[t+1]/sum(hpool))
+      scells <- round(c(f*g*seededcells[1], f*(1-g)*seededcells[1])/sum(f))
+      readmat[, 1] <- round(f*seqdepth[1]/sum(f))
     } else {
-
-      if (cellreplace == FALSE) {
-        
-        scells <- tabulate(c(seq_along(c(guides,guides)),
-                             sample(rep(seq_along(c(guides,guides)),
-                                        c(unlist(cellpool[1,]), unlist(cellpool[2,]))),
-                                    seededcells[t+1], replace = FALSE)))-1
-        kocells <- scells[seq_along(guides)]
-        nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
-        if (harvestall == TRUE) {
-          hcells <- hpool - kocells - nkocells
-        } else {
-          temppool <- hpool - kocells - nkocells
-          hcells <- tabulate(c(seq_along(guides), sample(rep(seq_along(guides), temppool),
-                                                         harvestedcells[t+1], replace = FALSE)))-1
-        }
-        if (perfectseq == TRUE) {
-          readmat[,t+1] <- round(hcells*seqdepth[t+1]/sum(hcells))
-        } else {
-          readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
-                                                                seqdepth[t+1], replace = TRUE, prob = hcells)))-1
-        }
-
+      scells <- tabulate(c(seq_along(c(guides,guides)),
+                           sample(seq_along(c(guides,guides)), seededcells[1],
+                                  replace = TRUE, prob = c(f*g, f*(1-g)))))-1
+      hcells <- tabulate(c(seq_along(guides),
+                           sample(seq_along(guides), harvestedcells[1],
+                                  replace = TRUE, prob = f)))-1
+      if (perfectseq == TRUE) {
+        readmat[, 1] <- round(hcells*seqdepth[1]/sum(hcells))
       } else {
-        scells <- tabulate(c(seq_along(c(guides,guides)),
-                             sample(seq_along(c(guides,guides)),
-                                    seededcells[t+1], replace = TRUE,
-                                    prob = c(unlist(cellpool[1,]), unlist(cellpool[2,])))))-1
-        kocells <- scells[seq_along(guides)]
-        nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
-        if (harvestall == TRUE) {
-          hcells <- hpool - kocells - nkocells
-          hcells[hcells < 0] <- 0
-        } else {
-          hcells <- tabulate(c(seq_along(guides),
-                               sample(seq_along(guides),
-                                      harvestedcells[t+1], replace = TRUE, prob = hpool)))-1
-        }
-        if (perfectseq == TRUE) {
-          readmat[,t+1] <- round(hcells*seqdepth[t+1]/sum(hcells))
-        } else {
-          readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
-                                                                seqdepth[t+1], replace = TRUE, prob = hcells)))-1
-        }
-
+        readmat[, 1] <- tabulate(c(seq_along(guides),
+                                   sample(seq_along(guides), seqdepth[1],
+                                          replace = TRUE, prob = hcells)))-1
       }
-
     }
-
+  })
+  
+  colnames(readmat) <- c("t0", paste0("t", cumsum(a)))
+  
+  if (missing(repseed)) {
+    if (is.null(allseed)) {
+      repseed <- sample.int(.Machine$integer.max, 1L)
+    } else {
+      repseed <- allseed+6
+    }
   }
-
-  print("wrapping up")
-
+  with_seed(repseed, {
+    kocells <- scells[seq_along(guides)]
+    nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
+    st <- 0
+    grme <- 1+grm*em-em
+    for (t in seq_along(a)) {
+      message("started with t", sum(a[seq(1,t)]))
+      
+      if (missing(e) || length(e) == 1) {
+        cellpool <- mapply(function(stud, dud, d) {
+          kocells <- round(stud*2^((1+d)*a[t]))
+          nkocells <- round(dud*2^a[t])
+          return(list(kocells = kocells, nkocells = nkocells))
+        }, kocells, nkocells, d)
+      } else {
+        if (treatmentdelay < t) {st <- 1}
+        cellpool <- mapply(function(stud, dud, d, e) {
+          kocells <- round(stud*2^((grme^st+d+e)*a[t]))
+          nkocells <- round(dud*2^(grme^st*a[t]))
+          return(list(kocells = kocells, nkocells = nkocells))
+        }, kocells, nkocells, d, e*st*em)
+      }
+      
+      # Note: the vector hpool is made immediately. Not so the vectors kocells and
+      # nkocells. These are reserved for newly sampled batches, to be used in the
+      # next iteration of the loop. If the kocells or nkocells are needed, they
+      # are unlisted from cellpool.
+      hpool <- unlist(cellpool[1,])+unlist(cellpool[2,])
+      neededcells <- seededcells[t+1] + harvestedcells[t+1]
+      if (neededcells > sum(hpool)) {
+        warning(paste0("not enough cells at t", t))
+        seededcells[t+1] <- floor(sum(hpool)*seededcells[t+1]/neededcells)
+        harvestedcells[t+1] <- floor(sum(hpool)*harvestedcells[t+1]/neededcells)
+      }
+      if (perfectsampling == TRUE) {
+        kocells <- round(unlist(cellpool[1,])*seededcells[t+1]/sum(hpool))
+        nkocells <- round(unlist(cellpool[2,])*seededcells[t+1]/sum(hpool))
+        readmat[, t+1] <- round(hpool*seqdepth[t+1]/sum(hpool))
+      } else {
+        
+        if (cellreplace == FALSE) {
+          
+          scells <- tabulate(c(seq_along(c(guides,guides)),
+                               sample(rep(seq_along(c(guides,guides)),
+                                          c(unlist(cellpool[1,]), unlist(cellpool[2,]))),
+                                      seededcells[t+1], replace = FALSE)))-1
+          kocells <- scells[seq_along(guides)]
+          nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
+          if (harvestall == TRUE) {
+            hcells <- hpool - kocells - nkocells
+          } else {
+            temppool <- hpool - kocells - nkocells
+            hcells <- tabulate(c(seq_along(guides), sample(rep(seq_along(guides), temppool),
+                                                           harvestedcells[t+1], replace = FALSE)))-1
+          }
+          if (perfectseq == TRUE) {
+            readmat[,t+1] <- round(hcells*seqdepth[t+1]/sum(hcells))
+          } else {
+            readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
+                                                                  seqdepth[t+1], replace = TRUE, prob = hcells)))-1
+          }
+          
+        } else {
+          scells <- tabulate(c(seq_along(c(guides,guides)),
+                               sample(seq_along(c(guides,guides)),
+                                      seededcells[t+1], replace = TRUE,
+                                      prob = c(unlist(cellpool[1,]), unlist(cellpool[2,])))))-1
+          kocells <- scells[seq_along(guides)]
+          nkocells <- scells[seq(length(guides)+1, 2*length(guides))]
+          if (harvestall == TRUE) {
+            hcells <- hpool - kocells - nkocells
+            hcells[hcells < 0] <- 0
+          } else {
+            hcells <- tabulate(c(seq_along(guides),
+                                 sample(seq_along(guides),
+                                        harvestedcells[t+1], replace = TRUE, prob = hpool)))-1
+          }
+          if (perfectseq == TRUE) {
+            readmat[,t+1] <- round(hcells*seqdepth[t+1]/sum(hcells))
+          } else {
+            readmat[,t+1] <- tabulate(c(seq_along(guides), sample(seq_along(guides),
+                                                                  seqdepth[t+1], replace = TRUE, prob = hcells)))-1
+          }
+          
+        }
+        
+      }
+      
+    }
+  })
+  
+  message("wrapping up")
+  
   df <- as.data.frame(readmat)
-
+  
   if (missing(e)) {
     df <- data.frame(guides, gene = rep(genes, n), d, f, g, df, stringsAsFactors = FALSE)
   } else {
     df <- data.frame(guides, gene = rep(genes, n), d, e, f, g, df, stringsAsFactors = FALSE)
   }
-
+  
   if (!missing(outputfile)) {
     write.table(df, outputfile, row.names = FALSE, quote = FALSE, sep = "\t")
   }
-
+  
   if (returnall == TRUE && missing(e)) {
     return(list(
       guidesdf = df,
@@ -539,9 +589,7 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
   } else {
     return(df) 
   }
-
 }
-
 
 #' Calculate rate ratios restricted by confidence level
 #'
