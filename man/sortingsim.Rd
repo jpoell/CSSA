@@ -4,11 +4,36 @@
 \alias{sortingsim}
 \title{Simulate a selection-based CRISPR-Cas9 pooled screen}
 \usage{
-sortingsim(genes, guides, g, f, d, e, baseprob = 0.1,
-  hitfraction = 1/200, hitsup, hitfactor = 10, efraction, eup, efactor,
-  sortedcells, seqdepth, offtargets = FALSE, allseed = NULL, gseed,
-  fseed, dseed, eseed, oseed, t0seed, repseed, perfectsampling = FALSE,
-  perfectseq, returnall = FALSE, outputfile)
+sortingsim(
+  genes,
+  guides,
+  g,
+  f,
+  d,
+  e,
+  baseprob = 0.1,
+  hitfraction = 1/200,
+  hitsup,
+  hitfactor = 10,
+  efraction,
+  eup,
+  efactor,
+  sortedcells,
+  seqdepth,
+  offtargets = FALSE,
+  allseed = NULL,
+  gseed,
+  fseed,
+  dseed,
+  eseed,
+  oseed,
+  t0seed,
+  repseed,
+  perfectsampling = FALSE,
+  perfectseq,
+  returnall = FALSE,
+  outputfile
+)
 }
 \arguments{
 \item{genes}{Single integer or character vector. Specify how many or which

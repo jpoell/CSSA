@@ -838,7 +838,8 @@ odds2pq <- function(odds, log = 10) {
 #'   calculations for a whole genome data set. If you want "more exact" results
 #'   than given by the default range, set \code{effectrange} yourself (e.g.
 #'   \code{seq(-2, 1, by = 0.01)}). Use \code{semiexact == TRUE} to get closer
-#'   approximations and unique effect values without crashing the computer.
+#'   approximations and unique effect values without crashing the computer. Note
+#'   that this does require the precalculation of a range!
 #'
 #'   Using \code{\link{CRISPRsim}} to validate the performance of this function,
 #'   the exact effect values end up very close to the input effect values, but
@@ -973,7 +974,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
     genei <- cumsum(nguides)
   }
   
-  # I have noted I have to first bind the variables used in foreach...
+  # I have noticed I have to first bind the variables used in foreach...
   n <- gi <- gene <- i <- NULL
   
   if (output == "range" || output == "both") {
@@ -1129,6 +1130,9 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
       }
     } else {return(allodds)}
   } else {
+    if (semiexact == TRUE) {
+      warning("Semiexact approximations require a range; proceeding with exact approximations!")
+    }
     exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
       mean(approximate(function(e) {
         fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a

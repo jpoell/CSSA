@@ -4,16 +4,23 @@
 \alias{radjust}
 \title{Calculate rate ratios restricted by confidence level}
 \usage{
-radjust(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
-  log = 2, belowxreads = FALSE)
+radjust(
+  t1,
+  t0,
+  conf.level = 0.8,
+  normfun = "sum",
+  normsubset,
+  log = 2,
+  belowxreads = 300
+)
 }
 \arguments{
-\item{t1}{Integer vector. Raw sequencing reads in test sample}
+\item{t1}{Integer vector or matrix. Raw sequencing reads in test sample}
 
-\item{t0}{Integer vector. Raw sequencing reads in control sample}
+\item{t0}{Integer vector or matrix. Raw sequencing reads in control sample}
 
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
-FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
+FALSE, an unadjusted rate ratio will be returned. Default = 0.8}
 
 \item{normfun}{Character string. Specify with which function to standardize
 the data. Default = "sum"}
@@ -25,23 +32,29 @@ be used in standardization}
 ratio, and with what base. If TRUE, uses natural logarithm. Default = 2}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
-unadjusted rate ratio is returned. Default = FALSE}
+confidence limit is approximated. Default = 300}
 }
 \value{
 Returns the (log2-transformed) adjusted rate ratio.
 }
 \description{
 radjust is designed to calculate rate ratios of sequencing results. It uses
-the binomial distribution to calculate confidence intervals of rate ratios,
-and returns the log2-transformed confidence limit that is closest to 0.
+the binomial distribution to calculate confidence intervals of rate ratios
+(and the normal approximation for large counts), and returns the
+log2-transformed confidence limit that is closest to 0.
 }
 \details{
 The core of this function utilizes the \code{\link{poisson.test}}
   function from the stats package, with \code{x = c(t1, t0)} and \code{T =
-  c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper and lower
-  confidence limits are log-transformed and the value closest to 0 is
-  returned. If the log-transformed upper and lower limit have opposite
-  signs, 0 is returned.
+  c(sumreads1, sumreads0)}. Above the belowxreads cutoff, the confidence
+  interval is approximated as \code{logr +/- Z*sqrt(1/t1 + 1/t0)}. Here logr
+  is the log-transformed rate ratio and Z is the number of standard units
+  corresponding with the chosen confidence interval. If conf.level is not
+  FALSE, the (log-transformed) confidence limit closest to 0 is returned. If
+  the log-transformed upper and lower limit have opposite signs, i.e. the
+  null hypothesis lies within the confidence interval, 0 is returned. If the
+  function is performed on matrices for t0 and t1, then columns of t0 and t1
+  are expected to be paired. See \code{\link{rrep}} for unpaired data.
 }
 \note{
 If conf.level is set to 0, it will be interpreted as FALSE. This is

@@ -4,8 +4,17 @@
 \alias{nestedradjust}
 \title{Calculate rate ratios of rate ratios restricted by confidence level}
 \usage{
-nestedradjust(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum",
-  normsubset, log = 2, belowxreads = FALSE)
+nestedradjust(
+  mt1,
+  wt1,
+  mt0,
+  wt0,
+  conf.level = 0.8,
+  normfun = "sum",
+  normsubset,
+  log = 2,
+  belowxreads = 300
+)
 }
 \arguments{
 \item{mt1}{Integer vector. Raw sequencing reads in test sample, t1}
@@ -17,7 +26,7 @@ nestedradjust(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum",
 \item{wt0}{Integer vector. Raw sequencing reads in control sample, t0}
 
 \item{conf.level}{Numeric. Sets the confidence level of the rate ratio. If
-FALSE, an unadjusted rate ratio will be returned. Default = 0.01}
+FALSE, an unadjusted rate ratio will be returned. Default = 0.8}
 
 \item{normfun}{Character string. Specify with which function to standardize
 the data. Default = "sum"}
@@ -25,11 +34,11 @@ the data. Default = "sum"}
 \item{normsubset}{Integer vector. Specify the indices of features that are to
 be used in standardization}
 
-\item{log}{Logical. Specify whether the rate ratio should be
-log-transformed. If TRUE, uses natural logarithm. Default = 2}
+\item{log}{Logical. Specify whether the rate ratio should be log-transformed.
+If TRUE, uses natural logarithm. Default = 2}
 
 \item{belowxreads}{Logical or numeric. Set threshold above which the
-unadjusted rate ratio is returned. Default = FALSE}
+unadjusted rate ratio is returned. Default = 300}
 }
 \value{
 Returns the (log2-transformed) adjusted rate ratio.
@@ -46,6 +55,14 @@ The basic functionality is similar to \code{\link{radjust}}. The
   and lower confidence limit of the rate ratio at baseline are tested as time
   base. From the resulting two rate ratios, the smallest fold change ratio is
   returned. It therefore estimates a conservative rate ratio.
+}
+\note{
+The function will run but give a warning when supplying a matrix per
+  experimental arm. For most experimental set-ups, replicates between mutant
+  and wild-type will not be paired, and \code{\link{rrep}} will have to be
+  used. An example of when you can supply a matrix of data is when you are
+  analyzing isogenic lines in different parental lines, and each column
+  represents a different parental line.
 }
 \examples{
 wt <- CRISPRsim(genes = 10, guides = 4, a = 3, allseed = 1, t0seed = 2, perfectseq = TRUE)

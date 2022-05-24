@@ -6,13 +6,41 @@
 \alias{geteffect_r}
 \title{Approximate effect of gene knockout on growth}
 \usage{
-geteffect_c(guides, t1, t0, normfun = "sum", normsubset, a, g, gw,
-  gl = 11, subset, effectrange, output = "range", exactci = FALSE,
-  semiexact = FALSE, ebcfun = "max", minprob = 10^-20)
+geteffect_c(
+  guides,
+  t1,
+  t0,
+  normfun = "sum",
+  normsubset,
+  a,
+  g,
+  gw,
+  gl = 11,
+  subset,
+  effectrange,
+  output = "range",
+  exactci = FALSE,
+  semiexact = FALSE,
+  ebcfun = "max",
+  minprob = 10^-20
+)
 
-geteffect_r(guides, r, rse, a, g, gw, gl = 11, subset, effectrange,
-  output = "range", exactci = FALSE, semiexact = FALSE,
-  ebcfun = "max", minprob = 10^-20)
+geteffect_r(
+  guides,
+  r,
+  rse,
+  a,
+  g,
+  gw,
+  gl = 11,
+  subset,
+  effectrange,
+  output = "range",
+  exactci = FALSE,
+  semiexact = FALSE,
+  ebcfun = "max",
+  minprob = 10^-20
+)
 }
 \arguments{
 \item{guides}{Character vector. Guides are assumed to start with the gene
@@ -131,7 +159,8 @@ While the calculations on the ranged output are fully vectorized, the
   calculations for a whole genome data set. If you want "more exact" results
   than given by the default range, set \code{effectrange} yourself (e.g.
   \code{seq(-2, 1, by = 0.01)}). Use \code{semiexact == TRUE} to get closer
-  approximations and unique effect values without crashing the computer.
+  approximations and unique effect values without crashing the computer. Note
+  that this does require the precalculation of a range!
 
   Using \code{\link{CRISPRsim}} to validate the performance of this function,
   the exact effect values end up very close to the input effect values, but

@@ -5,8 +5,21 @@
 \title{Derive growth-modifying effect of gene knockout in pooled experiments with
 replicate arms}
 \usage{
-degrep(guides, r0, se0, r1, se1, rt = FALSE, set = FALSE, a, b,
-  hnull = 0, nse = 2, secondbest = TRUE, correctab = TRUE)
+degrep(
+  guides,
+  r0,
+  se0,
+  r1,
+  se1,
+  rt = FALSE,
+  set = FALSE,
+  a,
+  b,
+  hnull = 0,
+  nse = 2,
+  secondbest = TRUE,
+  correctab = TRUE
+)
 }
 \arguments{
 \item{guides}{Character vector. Guides are assumed to start with the gene

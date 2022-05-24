@@ -1,9 +1,9 @@
 #' Calculate rate ratios with standard error of count data based on replicates
 #'
 #' rrep calculates rate ratios and corresponding standard errors of features
-#' based on the presence of replicates. The function uses the compound variance
-#' of the rate ratio of replicates as well as the variance associated with read
-#' depth (i.e. counts). Rate ratio and standard error are expressed as
+#' based on the presence of replicates. The function calculates standard error
+#' of the rate ratio based on replicates, based on variance associated with read
+#' depth (i.e. counts), or both. Rate ratio and standard error are expressed as
 #' log2-values.
 #'
 #' @param t1 Matrix or data frame, with rows representing features and columns
@@ -16,11 +16,14 @@
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
 #' @param rstat Character string. Specify whether rate ratios are calculated
-#'   over the sum of the counts in replicates or as the median or mean of the
-#'   log2 rate ratios. Default = "summed"
+#'   over the sum of the counts in replicates or as the "median" or "mean" of
+#'   the log2 rate ratios. Default = "summed"
 #' @param variance Character string. Specify how to calculate variance: using
 #'   only \code{count} variance, only \code{replicate} variance, or the both
 #'   \code{combined}. Default = "combined"
+#' @param countvar Character string. Specify how to calculate variance based on
+#'   count depth. Either "poisson", "qp" (quasipoisson), or "nb" (negative
+#'   binomial). Default = "poisson"
 #'
 #' @details This function combines the confidence based on replicate
 #'   measurements with the confidence based on counts (e.g. read depth).
@@ -30,7 +33,12 @@
 #'   close together. By adding the variance based on the count data, spurious
 #'   findings are greatly reduced, especially when counts are low. Variance of
 #'   count data on a log2-transformed scale is approximated with the formula
-#'   \code{1/(log(2)^2*count)}
+#'   \code{1/(log(2)^2*count)} if counts are expected to follow Poisson
+#'   distributions. In case of quasipoisson and negative binomial, available
+#'   through the countvar option, the formula is \code{theta/(log(2)^2*count)}
+#'   and \code{(1+theta*count)/(log(2)^2*count)} respectively, with theta being
+#'   an overdispersion factor fitted on the non-transformed data of the
+#'   experimental arms (i.e. t0 and t1).
 #'
 #' @return Returns a data frame with the log2-transformed rate ratio and
 #'   corresponding standard error of each feature.
@@ -39,7 +47,7 @@
 #'   pseudocount of 1/replicates is added to all counts in that row. These
 #'   pseudocounts are not included in the normalization on the bases of total
 #'   counts (of all features are the normalization subset) in an experimental
-#'   arm
+#'   arm.
 #'
 #' @seealso \code{\link{degrep}}, \code{\link{CRISPRsim}}, \code{\link{ess}},
 #'   \code{\link{noness}}
@@ -61,7 +69,7 @@
 #' @export
 
 rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset, 
-                 rstat = "summed", variance = "combined") {
+                 rstat = "summed", variance = "combined", countvar = "poisson") {
   fun <- get(normfun)
   if (!missing(normsubset)) {
     sr0 <- apply(t0[normsubset,], 2, fun)
@@ -82,6 +90,7 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset,
     stop("In paired analysis both arms need equal number of replicates")
   }
   
+  # Note that the following apply function effectively transposes the data:
   c1 <- apply(cbind(t1,t0), 1, function(x) {
     if (any(x==0)) x[1:reps1]+1/reps1 else x[1:reps1]
   })
@@ -101,9 +110,35 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset,
     } else if (rstat == "mean") {
       r <- apply(log((c1/sr1)/(c0/sr0), 2), 2, mean)
     } else {
-      stop ("Invalid rstat: choose from summed, mean or median")
+      stop("Invalid rstat: choose from summed, mean or median")
     }
-    varcount <- apply(rbind(c1, c0), 2, function(x) sum(1/(log(2)^2*x)))/reps1
+    if (countvar == "qp") {
+      expvar0 <- apply(t0, 1, mean)
+      obsvar0 <- apply(t0, 1, var)
+      theta0 <- lm(obsvar0 ~ 0 + expvar0)$coefficients
+      expvar1 <- apply(t1, 1, mean)
+      obsvar1 <- apply(t1, 1, var)
+      theta1 <- lm(obsvar1 ~ 0 + expvar1)$coefficients
+      message(paste0("Dispersion factor for quasipoisson fit of t0: ", signif(theta0,6)))
+      message(paste0("Dispersion factor for quasipoisson fit of t1: ", signif(theta1,6)))
+      varcount <- apply(rbind(c0, c1), 2, function(x) sum(rep(c(theta0, theta1), each = reps1)/(log(2)^2*x)))/reps1
+    } else if (countvar == "nb") {
+      expvar0 <- apply(t0, 1, mean)
+      obsvar0 <- apply(t0, 1, var)
+      x0 <- expvar0^2
+      theta0 <- lm(obsvar0-expvar0 ~ 0 + x0)$coefficients
+      expvar1 <- apply(t1, 1, mean)
+      obsvar1 <- apply(t1, 1, var)
+      x1 <- expvar1^2
+      theta1 <- lm(obsvar1-expvar1 ~ 0 + x1)$coefficients
+      message(paste0("Dispersion factor for negative binomial fit of t0: ", signif(theta0,6)))
+      message(paste0("Dispersion factor for negative binomial fit of t1: ", signif(theta1,6)))
+      varcount <- apply(rbind(c0, c1), 2, function(x) sum((1+rep(c(theta0, theta1), each = reps1)*x)/(log(2)^2*x)))/reps1
+    } else if (countvar == "poisson") {
+      varcount <- apply(rbind(c0, c1), 2, function(x) sum(1/(log(2)^2*x)))/reps1
+    } else {
+      stop("Invalid countvar: choose from poisson, qp or nb")
+    }
     varrep <- apply(log((c1/sr1)/(c0/sr0), 2), 2, var)
     if (variance == "count") {
       se <- sqrt(varcount/reps1)
@@ -120,9 +155,35 @@ rrep <- function(t1, t0, paired = TRUE, normfun = "sum", normsubset,
     } else if (rstat == "mean") {
       r <- apply(log((c1/sr1), 2), 2, mean) - apply(log((c0/sr0), 2), 2, mean)
     } else {
-      stop ("Invalid rstat: choose from summed, mean or median")
+      stop("Invalid rstat: choose from summed, mean or median")
     }
-    varcount <- apply(c1, 2, function(x) mean(1/(log(2)^2*x))) + apply(c0, 2, function(x) mean(1/(log(2)^2*x)))
+    if (countvar == "qp") {
+      expvar0 <- apply(t0, 1, mean)
+      obsvar0 <- apply(t0, 1, var)
+      theta0 <- lm(obsvar0 ~ 0 + expvar0)$coefficients
+      expvar1 <- apply(t1, 1, mean)
+      obsvar1 <- apply(t1, 1, var)
+      theta1 <- lm(obsvar1 ~ 0 + expvar1)$coefficients
+      message(paste0("Dispersion factor for quasipoisson fit of t0: ", signif(theta0,6)))
+      message(paste0("Dispersion factor for quasipoisson fit of t1: ", signif(theta1,6)))
+      varcount <- apply(c0, 2, function(x) mean(theta0/(log(2)^2*x))) + apply(c1, 2, function(x) mean(theta1/(log(2)^2*x)))
+    } else if (countvar == "nb") {
+      expvar0 <- apply(t0, 1, mean)
+      obsvar0 <- apply(t0, 1, var)
+      x0 <- expvar0^2
+      theta0 <- lm(obsvar0-expvar0 ~ 0 + x0)$coefficients
+      expvar1 <- apply(t1, 1, mean)
+      obsvar1 <- apply(t1, 1, var)
+      x1 <- expvar1^2
+      theta1 <- lm(obsvar1-expvar1 ~ 0 + x1)$coefficients
+      message(paste0("Dispersion factor for negative binomial fit of t0: ", signif(theta0,6)))
+      message(paste0("Dispersion factor for negative binomial fit of t1: ", signif(theta1,6)))
+      varcount <- apply(c0, 2, function(x) mean((1+theta0*x)/(log(2)^2*x))) + apply(c1, 2, function(x) mean((1+theta1*x)/(log(2)^2*x)))
+    } else if (countvar == "poisson") {
+      varcount <- apply(c0, 2, function(x) mean(1/(log(2)^2*x))) + apply(c1, 2, function(x) mean(1/(log(2)^2*x)))
+    } else {
+      stop("Invalid countvar: choose from poisson, qp or nb")
+    }
     varrep <- apply(log(c1/sr1, 2), 2, var) + apply(log(c0/sr0, 2), 2, var)
     if (variance == "count") {
       se <- sqrt(varcount/min(reps0,reps1))

@@ -37,7 +37,7 @@
 #' @author Jos B. Poell
 #' 
 #' @importFrom methods is
-#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad var
+#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad var lm
 #' @importFrom utils data head tail write.table
 #' @importFrom foreach foreach "%do%"
 #' @importFrom withr with_seed
@@ -594,13 +594,14 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' Calculate rate ratios restricted by confidence level
 #'
 #' radjust is designed to calculate rate ratios of sequencing results. It uses
-#' the binomial distribution to calculate confidence intervals of rate ratios,
-#' and returns the log2-transformed confidence limit that is closest to 0.
+#' the binomial distribution to calculate confidence intervals of rate ratios
+#' (and the normal approximation for large counts), and returns the
+#' log2-transformed confidence limit that is closest to 0.
 #'
-#' @param t1 Integer vector. Raw sequencing reads in test sample
-#' @param t0 Integer vector. Raw sequencing reads in control sample
+#' @param t1 Integer vector or matrix. Raw sequencing reads in test sample
+#' @param t0 Integer vector or matrix. Raw sequencing reads in control sample
 #' @param conf.level Numeric. Sets the confidence level of the rate ratio. If
-#'   FALSE, an unadjusted rate ratio will be returned. Default = 0.01
+#'   FALSE, an unadjusted rate ratio will be returned. Default = 0.8
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
@@ -608,14 +609,19 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #' @param log Logical or numeric. Specify whether to log-transform the rate
 #'   ratio, and with what base. If TRUE, uses natural logarithm. Default = 2
 #' @param belowxreads Logical or numeric. Set threshold above which the
-#'   unadjusted rate ratio is returned. Default = FALSE
+#'   confidence limit is approximated. Default = 300
 #'
 #' @details The core of this function utilizes the \code{\link{poisson.test}}
 #'   function from the stats package, with \code{x = c(t1, t0)} and \code{T =
-#'   c(sumreads1, sumreads0)}. If conf.level is not FALSE, the upper and lower
-#'   confidence limits are log-transformed and the value closest to 0 is
-#'   returned. If the log-transformed upper and lower limit have opposite
-#'   signs, 0 is returned.
+#'   c(sumreads1, sumreads0)}. Above the belowxreads cutoff, the confidence
+#'   interval is approximated as \code{logr +/- Z*sqrt(1/t1 + 1/t0)}. Here logr
+#'   is the log-transformed rate ratio and Z is the number of standard units
+#'   corresponding with the chosen confidence interval. If conf.level is not
+#'   FALSE, the (log-transformed) confidence limit closest to 0 is returned. If
+#'   the log-transformed upper and lower limit have opposite signs, i.e. the
+#'   null hypothesis lies within the confidence interval, 0 is returned. If the
+#'   function is performed on matrices for t0 and t1, then columns of t0 and t1
+#'   are expected to be paired. See \code{\link{rrep}} for unpaired data.
 #'
 #' @return Returns the (log2-transformed) adjusted rate ratio.
 #'
@@ -644,26 +650,48 @@ CRISPRsim <- function(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
 #'
 #' @export
 
-radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
-                    log = 2, belowxreads = FALSE) {
+radjust <- function(t1, t0, conf.level = 0.8, normfun = "sum", normsubset,
+                    log = 2, belowxreads = 300) {
   fun <- get(normfun)
-  if (!missing(normsubset)) {
-    sr0 <- fun(t0[normsubset])
-    sr1 <- fun(t1[normsubset])
+  if (length(ncol(t1))==0 || ncol(t1)==1) {
+    if (!missing(normsubset)) {
+      sr0 <- fun(t0[normsubset])
+      sr1 <- fun(t1[normsubset])
+    }
+    else {
+      sr0 <- fun(t0)
+      sr1 <- fun(t1)
+    }
+  } else if (ncol(t1) != ncol(t0) || nrow(t1) != nrow(t0)) {
+    stop("This function requires equal numbers of rows and columns for t0 and t1")
   } else {
-    sr0 <- fun(t0)
-    sr1 <- fun(t1)
-  }
-  
-  r <- mapply(function(t1, t0) {
-    if (belowxreads != FALSE && min(t1, t0) >= belowxreads) {
-      if (log == FALSE) {
-        # returning unadjusted rate ratio
-        return((t1/sr1)/(t0/sr0))
-      } else if (log != TRUE) {
-        return(log((t1/sr1)/(t0/sr0), log))
+    message("Note that this function expects paired columns for t0 and t1")
+    if (!missing(normsubset)) {
+      if (length(normsubset)==1) {
+        sr0 <- rep(t0[normsubset, ], each = nrow(t0))
+        sr1 <- rep(t1[normsubset, ], each = nrow(t1))
       } else {
-        return(log((t1/sr1)/(t0/sr0)))
+        sr0 <- rep(apply(t0[normsubset, ], 2, fun),  each = nrow(t0))
+        sr1 <- rep(apply(t1[normsubset, ], 2, fun),  each = nrow(t0))
+      }
+    }
+    else {
+      sr0 <- rep(apply(t0, 2, fun), each = nrow(t0))
+      sr1 <- rep(apply(t1, 2, fun), each = nrow(t1))
+    }
+  } 
+  
+  Z <- qnorm(1-(1-conf.level)/2)
+
+  r <- mapply(function(t1, t0, sr1, sr0) {
+    if (belowxreads != FALSE && min(t1, t0) >= belowxreads) {
+      logfc <- log((t1/sr1)/(t0/sr0))
+      hi <- logfc + Z*sqrt(1/t1 + 1/t0)
+      lo <- logfc - Z*sqrt(1/t1 + 1/t0)
+      if (prod(hi,lo) < 0) {
+        logr <- 0
+      } else {
+        logr  <- c(hi,lo)[which.min(abs(c(hi,lo)))]
       }
     } else {
       if (conf.level != FALSE) {
@@ -675,19 +703,23 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
         if(prod(logci) > 0) {logr  <- logci[which.min(abs(logci))]} else {logr <- 0}
       } else {
         # basically the same as belowxreads
-        logr <- log(poisson.test(x = c(t1, t0),
-                                  T = c(sr1, sr0))$estimate)
-      }
-      if(log == FALSE) {
-        r <- exp(logr)
-        return(r)
-      } else if (log == TRUE) {
-        return(logr)
-      } else {
-        return(logr/log(log))
+        logr <- log((t1/sr1)/(t0/sr0))
       }
     }
-  }, t1, t0)
+    if(log == FALSE) {
+      r <- exp(logr)
+      return(r)
+    } else if (log == TRUE) {
+      return(logr)
+    } else {
+      return(logr/log(log))
+    }
+  }, t1, t0, sr1, sr0)
+  
+  if(length(ncol(t1)) != 0) {
+    r <- matrix(r, ncol = ncol(t1))
+  }
+  
   return(r)
 }
 
@@ -701,15 +733,15 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #' @param mt0 Integer vector. Raw sequencing reads in test sample, t0
 #' @param wt0 Integer vector. Raw sequencing reads in control sample, t0
 #' @param conf.level Numeric. Sets the confidence level of the rate ratio. If
-#'   FALSE, an unadjusted rate ratio will be returned. Default = 0.01
+#'   FALSE, an unadjusted rate ratio will be returned. Default = 0.8
 #' @param normfun Character string. Specify with which function to standardize
 #'   the data. Default = "sum"
 #' @param normsubset Integer vector. Specify the indices of features that are to
 #'   be used in standardization
-#' @param log Logical. Specify whether the rate ratio should be
-#'   log-transformed. If TRUE, uses natural logarithm. Default = 2
+#' @param log Logical. Specify whether the rate ratio should be log-transformed.
+#'   If TRUE, uses natural logarithm. Default = 2
 #' @param belowxreads Logical or numeric. Set threshold above which the
-#'   unadjusted rate ratio is returned. Default = FALSE
+#'   unadjusted rate ratio is returned. Default = 300
 #'
 #' @details The basic functionality is similar to \code{\link{radjust}}. The
 #'   major difference lies in the time base factor. Because both samples have an
@@ -718,6 +750,13 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #'   and lower confidence limit of the rate ratio at baseline are tested as time
 #'   base. From the resulting two rate ratios, the smallest fold change ratio is
 #'   returned. It therefore estimates a conservative rate ratio.
+#'
+#' @note The function will run but give a warning when supplying a matrix per
+#'   experimental arm. For most experimental set-ups, replicates between mutant
+#'   and wild-type will not be paired, and \code{\link{rrep}} will have to be
+#'   used. An example of when you can supply a matrix of data is when you are
+#'   analyzing isogenic lines in different parental lines, and each column
+#'   represents a different parental line.
 #'
 #' @return Returns the (log2-transformed) adjusted rate ratio.
 #'
@@ -735,69 +774,107 @@ radjust <- function(t1, t0, conf.level = 0.01, normfun = "sum", normsubset,
 #'
 #' @export
 
-nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.01, normfun = "sum", 
-                          normsubset, log = 2, belowxreads = FALSE) {
+nestedradjust <- function(mt1, wt1, mt0, wt0, conf.level = 0.8, normfun = "sum", 
+                          normsubset, log = 2, belowxreads = 300) {
   fun <- get(normfun)
-  if (!missing(normsubset)) {
-    srmt1 <- fun(mt1[normsubset])
-    srwt1 <- fun(wt1[normsubset])
-    srmt0 <- fun(mt0[normsubset])
-    srwt0 <- fun(wt0[normsubset])
+  if (length(ncol(mt1))==0 || ncol(mt1)==1) {
+    if (!missing(normsubset)) {
+      srmt1 <- fun(mt1[normsubset])
+      srwt1 <- fun(wt1[normsubset])
+      srmt0 <- fun(mt0[normsubset])
+      srwt0 <- fun(wt0[normsubset])
+    }
+    else {
+      srmt1 <- fun(mt1)
+      srwt1 <- fun(wt1)
+      srmt0 <- fun(mt0)
+      srwt0 <- fun(wt0)
+    }
+  } else if (any(c(dim(mt1) != dim(mt0), dim(wt1) != dim(mt0), dim(wt0) != dim(mt0)))) {
+    stop("This function requires equal numbers of rows and columns")
   } else {
-    srmt1 <- fun(mt1)
-    srwt1 <- fun(wt1)
-    srmt0 <- fun(mt0)
-    srwt0 <- fun(wt0)
-  }
-  
-  r <- mapply(function(mt1, wt1, mt0, wt0) {
-    # checking whether belowxreads condition is met
-    if (belowxreads != FALSE && min(mt1, wt1, mt0, wt0) >= belowxreads | conf.level == FALSE) {
-      # calculate the sum reads ratio
-      srr <- (srmt0/srmt1)*(srwt1/srwt0)
-      if (log == FALSE) {
-        # return unadjusted rate ratio
-        return(srr*(mt1/wt1)/(mt0/wt0))
-      } else if (log != TRUE) {
-        return(log(srr*(mt1/wt1)/(mt0/wt0), log))
+    warning("Columns are considered paired for this analysis, even between mt and wt")
+    if (!missing(normsubset)) {
+      if (length(normsubset)==1) {
+        srmt0 <- rep(mt0[normsubset, ], each = nrow(mt0))
+        srmt1 <- rep(mt1[normsubset, ], each = nrow(mt1))
+        srwt0 <- rep(wt0[normsubset, ], each = nrow(wt0))
+        srwt1 <- rep(wt1[normsubset, ], each = nrow(wt1))
       } else {
-        # return unadjusted log2-transformed rate ratio
-        return(log(srr*(mt1/wt1)/(mt0/wt0)))
-      }
-    } else {
-      srr1 <- srmt1/srwt1
-      # calculate the confidence interval of the rate ratio at t0
-      ci0 <- poisson.test(x = c(mt0, wt0),
-                          T = c(srmt0, srwt0),
-                          conf.level = conf.level)$conf.int
-      # rate ratio should not contain 0 or divided by zero
-      if (ci0[1] == 0) {ci0[1] <- min(0.01, ci0[2]/100)}
-      if (ci0[2] == Inf) {ci0[2] <- max(100, ci0[1]*100)}
-      # calculate the confidence interval at t1 with the lower and higher
-      # estimates of the rate ratio at t0
-      logci1 <- log(poisson.test(x = c(mt1, wt1),
-                                   T = c(ci0[1]*srr1, 1),
-                                   conf.level = conf.level)$conf.int)
-      if(prod(logci1) > 0) {logr1  <- logci1[which.min(abs(logci1))]} else {logr1 <- 0}
-  
-      logci2 <- log(poisson.test(x = c(mt1, wt1),
-                                   T = c(ci0[2]*srr1, 1),
-                                   conf.level = conf.level)$conf.int)
-      if(prod(logci2) > 0) {logr2  <- logci2[which.min(abs(logci2))]} else {logr2 <- 0}
-  
-      # return the log-transformed rate ratio that is closest to 0
-      logr <- c(logr1, logr2)[which.min(c(abs(logr1), abs(logr2)))]
-  
-      if(log == FALSE) {
-        r <- exp(logr)
-        return(r)
-      } else if (log == TRUE) {
-        return(logr)
-      } else {
-        return(logr/log(log))
+        srmt0 <- rep(apply(mt0[normsubset, ], 2, fun),  each = nrow(mt0))
+        srmt1 <- rep(apply(mt1[normsubset, ], 2, fun),  each = nrow(mt1))
+        srwt0 <- rep(apply(wt0[normsubset, ], 2, fun),  each = nrow(wt0))
+        srwt1 <- rep(apply(wt1[normsubset, ], 2, fun),  each = nrow(wt1))
       }
     }
-  }, mt1, wt1, mt0, wt0)
+    else {
+      srmt0 <- rep(apply(mt0, 2, fun), each = nrow(mt0))
+      srmt1 <- rep(apply(mt1, 2, fun), each = nrow(mt1))
+      srwt0 <- rep(apply(wt0, 2, fun), each = nrow(wt0))
+      srwt1 <- rep(apply(wt1, 2, fun), each = nrow(wt1))
+    }
+  } 
+  
+  Z <- qnorm(1-(1-conf.level)/2)
+  
+  r <- mapply(function(mt1, wt1, mt0, wt0, srmt1, srwt1, srmt0, srwt0) {
+    # checking whether belowxreads condition is met
+    if (belowxreads != FALSE && min(mt1, wt1, mt0, wt0) >= belowxreads) {
+      # calculate the sum reads ratio
+      
+      srr <- (srmt0/srmt1)*(srwt1/srwt0)
+      
+      logfc <- log(srr*(mt1/wt1)/(mt0/wt0))
+      hi <- logfc + Z*sqrt(1/mt1 + 1/mt0 + 1/wt1 + 1/wt0)
+      lo <- logfc - Z*sqrt(1/mt1 + 1/mt0 + 1/wt1 + 1/wt0)
+      if (prod(hi,lo) < 0) {
+        logr <- 0
+      } else {
+        logr  <- c(hi,lo)[which.min(abs(c(hi,lo)))]
+      }
+    } else {
+      if (conf.level != FALSE) {
+        srr1 <- srmt1/srwt1
+        # calculate the confidence interval of the rate ratio at t0
+        ci0 <- poisson.test(x = c(mt0, wt0),
+                            T = c(srmt0, srwt0),
+                            conf.level = conf.level)$conf.int
+        # rate ratio should not contain 0 or divided by zero
+        if (ci0[1] == 0) {ci0[1] <- min(0.01, ci0[2]/100)}
+        if (ci0[2] == Inf) {ci0[2] <- max(100, ci0[1]*100)}
+        # calculate the confidence interval at t1 with the lower and higher
+        # estimates of the rate ratio at t0
+        logci1 <- log(poisson.test(x = c(mt1, wt1),
+                                   T = c(ci0[1]*srr1, 1),
+                                   conf.level = conf.level)$conf.int)
+        if(prod(logci1) > 0) {logr1  <- logci1[which.min(abs(logci1))]} else {logr1 <- 0}
+        
+        logci2 <- log(poisson.test(x = c(mt1, wt1),
+                                   T = c(ci0[2]*srr1, 1),
+                                   conf.level = conf.level)$conf.int)
+        if(prod(logci2) > 0) {logr2  <- logci2[which.min(abs(logci2))]} else {logr2 <- 0}
+        
+        # return the log-transformed rate ratio that is closest to 0
+        logr <- c(logr1, logr2)[which.min(c(abs(logr1), abs(logr2)))]
+      } else {
+        logr <- log(srr*(mt1/wt1)/(mt0/wt0))
+      }
+    }
+
+    if(log == FALSE) {
+      r <- exp(logr)
+      return(r)
+    } else if (log == TRUE) {
+      return(logr)
+    } else {
+      return(logr/log(log))
+    }
+  }, mt1, wt1, mt0, wt0, srmt1, srwt1, srmt0, srwt0)
+  
+  if(length(ncol(mt1)) != 0) {
+    r <- matrix(r, ncol = ncol(mt1))
+  }
+  
   return(r)
 }
 
@@ -834,12 +911,37 @@ jar <- function(t1, t0, n = 5, log = 2, normfun = "sum", normsubset) {
   t1 <- t1 + n
   t0 <- t0 + n
   fun <- get(normfun)
-  if (!missing(normsubset)) {
-    # only use guides for normalization specified by indices in normsubset
-    r <- (t1/fun(t1[normsubset]))/(t0/fun(t0[normsubset]))
+  
+  if (length(ncol(t1))==0 || ncol(t1)==1) {
+    if (!missing(normsubset)) {
+      sr0 <- fun(t0[normsubset])
+      sr1 <- fun(t1[normsubset])
+    }
+    else {
+      sr0 <- fun(t0)
+      sr1 <- fun(t1)
+    }
+  } else if (ncol(t1) != ncol(t0) || nrow(t1) != nrow(t0)) {
+    stop("This function requires equal numbers of rows and columns for t0 and t1")
   } else {
-    r <- (t1/fun(t1))/(t0/fun(t0))
-  }
+    message("Note that this function expects paired columns for t0 and t1")
+    if (!missing(normsubset)) {
+      if (length(normsubset)==1) {
+        sr0 <- rep(t0[normsubset, ], each = nrow(t0))
+        sr1 <- rep(t1[normsubset, ], each = nrow(t1))
+      } else {
+        sr0 <- rep(apply(t0[normsubset, ], 2, fun),  each = nrow(t0))
+        sr1 <- rep(apply(t1[normsubset, ], 2, fun),  each = nrow(t0))
+      }
+    }
+    else {
+      sr0 <- rep(apply(t0, 2, fun), each = nrow(t0))
+      sr1 <- rep(apply(t1, 2, fun), each = nrow(t1))
+    }
+  } 
+  
+  r <- (t1/sr1)/(t0/sr0)
+  
   if (log == TRUE) {
     r <- log(r)
   } else if (log != FALSE) {
@@ -886,12 +988,47 @@ doublejar <- function(mt1, wt1, mt0, wt0, n = 5, log = 2, normfun = "sum",
   mt0 <- mt0 + n
   wt0 <- wt0 + n
   fun <- get(normfun)
-  if (!missing(normsubset)) {
-    # only use guides for normalization specified by indices in normsubset
-    r <- ((mt1/fun(mt1[normsubset]))*(wt0/fun(wt0[normsubset]))) / ((mt0/fun(mt0[normsubset]))*(wt1/fun(wt1[normsubset])))
+  
+  if (length(ncol(mt1))==0 || ncol(mt1)==1) {
+    if (!missing(normsubset)) {
+      srmt1 <- fun(mt1[normsubset])
+      srwt1 <- fun(wt1[normsubset])
+      srmt0 <- fun(mt0[normsubset])
+      srwt0 <- fun(wt0[normsubset])
+    }
+    else {
+      srmt1 <- fun(mt1)
+      srwt1 <- fun(wt1)
+      srmt0 <- fun(mt0)
+      srwt0 <- fun(wt0)
+    }
+  } else if (any(c(dim(mt1) != dim(mt0), dim(wt1) != dim(mt0), dim(wt0) != dim(mt0)))) {
+    stop("This function requires equal numbers of rows and columns")
   } else {
-    r <- ((mt1/fun(mt1))*(wt0/fun(wt0))) / ((mt0/fun(mt0))*(wt1/fun(wt1)))
+    warning("Columns are considered paired for this analysis, even between mt and wt")
+    if (!missing(normsubset)) {
+      if (length(normsubset)==1) {
+        srmt0 <- rep(mt0[normsubset, ], each = nrow(mt0))
+        srmt1 <- rep(mt1[normsubset, ], each = nrow(mt1))
+        srwt0 <- rep(wt0[normsubset, ], each = nrow(wt0))
+        srwt1 <- rep(wt1[normsubset, ], each = nrow(wt1))
+      } else {
+        srmt0 <- rep(apply(mt0[normsubset, ], 2, fun),  each = nrow(mt0))
+        srmt1 <- rep(apply(mt1[normsubset, ], 2, fun),  each = nrow(mt1))
+        srwt0 <- rep(apply(wt0[normsubset, ], 2, fun),  each = nrow(wt0))
+        srwt1 <- rep(apply(wt1[normsubset, ], 2, fun),  each = nrow(wt1))
+      }
+    }
+    else {
+      srmt0 <- rep(apply(mt0, 2, fun), each = nrow(mt0))
+      srmt1 <- rep(apply(mt1, 2, fun), each = nrow(mt1))
+      srwt0 <- rep(apply(wt0, 2, fun), each = nrow(wt0))
+      srwt1 <- rep(apply(wt1, 2, fun), each = nrow(wt1))
+    }
   }
+  
+  r <- (srmt0/srmt1)*(srwt1/srwt0)*(mt1/wt1)/(mt0/wt0)
+  
   if (log == TRUE) {
     r <- log(r)
   } else if (log != FALSE) {
@@ -1026,7 +1163,7 @@ sumZ <- function(guides, Z) {
 #'   equal to a.
 #' @param secondbest Logical. If TRUE, calculate effect sizes based on the
 #'   second best guides of each gene as well. Default = TRUE
-#' @param skipcutoff Logical or numeric. If specified, do no calculate effect
+#' @param skipcutoff Logical or numeric. If specified, do not calculate effect
 #'   sizes of genes with maximum absolute rate ratios below this cut-off.
 #'   Default = FALSE
 #' @param correctab Logical. When \code{a != b}, it is be possible (and

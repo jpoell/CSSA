@@ -4,8 +4,16 @@
 \alias{rrep}
 \title{Calculate rate ratios with standard error of count data based on replicates}
 \usage{
-rrep(t1, t0, paired = TRUE, normfun = "sum", normsubset,
-  rstat = "summed", variance = "combined")
+rrep(
+  t1,
+  t0,
+  paired = TRUE,
+  normfun = "sum",
+  normsubset,
+  rstat = "summed",
+  variance = "combined",
+  countvar = "poisson"
+)
 }
 \arguments{
 \item{t1}{Matrix or data frame, with rows representing features and columns
@@ -23,12 +31,16 @@ the data. Default = "sum"}
 be used in standardization}
 
 \item{rstat}{Character string. Specify whether rate ratios are calculated
-over the sum of the counts in replicates or as the median or mean of the
-log2 rate ratios. Default = "summed"}
+over the sum of the counts in replicates or as the "median" or "mean" of
+the log2 rate ratios. Default = "summed"}
 
 \item{variance}{Character string. Specify how to calculate variance: using
 only \code{count} variance, only \code{replicate} variance, or the both
 \code{combined}. Default = "combined"}
+
+\item{countvar}{Character string. Specify how to calculate variance based on
+count depth. Either "poisson", "qp" (quasipoisson), or "nb" (negative
+binomial). Default = "poisson"}
 }
 \value{
 Returns a data frame with the log2-transformed rate ratio and
@@ -36,9 +48,9 @@ Returns a data frame with the log2-transformed rate ratio and
 }
 \description{
 rrep calculates rate ratios and corresponding standard errors of features
-based on the presence of replicates. The function uses the compound variance
-of the rate ratio of replicates as well as the variance associated with read
-depth (i.e. counts). Rate ratio and standard error are expressed as
+based on the presence of replicates. The function calculates standard error
+of the rate ratio based on replicates, based on variance associated with read
+depth (i.e. counts), or both. Rate ratio and standard error are expressed as
 log2-values.
 }
 \details{
@@ -50,14 +62,19 @@ This function combines the confidence based on replicate
   close together. By adding the variance based on the count data, spurious
   findings are greatly reduced, especially when counts are low. Variance of
   count data on a log2-transformed scale is approximated with the formula
-  \code{1/(log(2)^2*count)}
+  \code{1/(log(2)^2*count)} if counts are expected to follow Poisson
+  distributions. In case of quasipoisson and negative binomial, available
+  through the countvar option, the formula is \code{theta/(log(2)^2*count)}
+  and \code{(1+theta*count)/(log(2)^2*count)} respectively, with theta being
+  an overdispersion factor fitted on the non-transformed data of the
+  experimental arms (i.e. t0 and t1).
 }
 \note{
 Counts are checked for zeros per feature (row). In case of any zeros, a
   pseudocount of 1/replicates is added to all counts in that row. These
   pseudocounts are not included in the normalization on the bases of total
   counts (of all features are the normalization subset) in an experimental
-  arm
+  arm.
 }
 \examples{
   set.seed(1000)

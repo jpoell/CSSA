@@ -4,12 +4,36 @@
 \alias{CRISPRsim}
 \title{Simulate a CRISPR-Cas9 pooled screen}
 \usage{
-CRISPRsim(genes, guides, a, g, f, d, e, seededcells, harvestedcells,
-  harvestall = TRUE, cellreplace = FALSE, treatmentdelay = 0,
-  seqdepth, offtargets = FALSE, allseed = NULL, gseed, fseed, dseed,
-  eseed, oseed, t0seed, repseed, grm = 1, em = 1,
-  perfectsampling = FALSE, perfectseq = FALSE, returnall = FALSE,
-  outputfile)
+CRISPRsim(
+  genes,
+  guides,
+  a,
+  g,
+  f,
+  d,
+  e,
+  seededcells,
+  harvestedcells,
+  harvestall = TRUE,
+  cellreplace = FALSE,
+  treatmentdelay = 0,
+  seqdepth,
+  offtargets = FALSE,
+  allseed = NULL,
+  gseed,
+  fseed,
+  dseed,
+  eseed,
+  oseed,
+  t0seed,
+  repseed,
+  grm = 1,
+  em = 1,
+  perfectsampling = FALSE,
+  perfectseq = FALSE,
+  returnall = FALSE,
+  outputfile
+)
 }
 \arguments{
 \item{genes}{Single integer or character vector. Specify how many or which

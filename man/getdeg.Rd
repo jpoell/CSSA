@@ -4,8 +4,17 @@
 \alias{getdeg}
 \title{Derive growth-modifying effect of gene knockout in pooled experiments}
 \usage{
-getdeg(guides, r0, r1, rt = FALSE, a, b, secondbest = TRUE,
-  skipcutoff = FALSE, correctab = TRUE)
+getdeg(
+  guides,
+  r0,
+  r1,
+  rt = FALSE,
+  a,
+  b,
+  secondbest = TRUE,
+  skipcutoff = FALSE,
+  correctab = TRUE
+)
 }
 \arguments{
 \item{guides}{Character vector. Guides are assumed to start with the gene
@@ -32,7 +41,7 @@ equal to a.}
 \item{secondbest}{Logical. If TRUE, calculate effect sizes based on the
 second best guides of each gene as well. Default = TRUE}
 
-\item{skipcutoff}{Logical or numeric. If specified, do no calculate effect
+\item{skipcutoff}{Logical or numeric. If specified, do not calculate effect
 sizes of genes with maximum absolute rate ratios below this cut-off.
 Default = FALSE}
 

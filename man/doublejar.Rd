@@ -4,8 +4,7 @@
 \alias{doublejar}
 \title{Rate ratios of rate ratios after adding an artificial number to all features}
 \usage{
-doublejar(mt1, wt1, mt0, wt0, n = 5, log = 2, normfun = "sum",
-  normsubset)
+doublejar(mt1, wt1, mt0, wt0, n = 5, log = 2, normfun = "sum", normsubset)
 }
 \arguments{
 \item{mt1}{Numeric vector. Feature data in test sample of line m}
