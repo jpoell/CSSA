@@ -37,7 +37,7 @@
 #' @author Jos B. Poell
 #' 
 #' @importFrom methods is
-#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad var lm
+#' @importFrom stats median p.adjust pnorm qnorm poisson.test rbinom pbinom rnorm runif sd mad var lm optimize
 #' @importFrom utils data head tail write.table
 #' @importFrom foreach foreach "%do%"
 #' @importFrom withr with_seed

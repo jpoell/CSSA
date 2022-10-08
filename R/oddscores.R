@@ -977,7 +977,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
   # I have noticed I have to first bind the variables used in foreach...
   n <- gi <- gene <- i <- NULL
   
-  if (output == "range" || output == "both") {
+  if (output == "range" || output == "both" || semiexact == TRUE) {
     # I imagine it is beneficial to perform the outer loop in parallel using
     # %dopar% if a parallel backend is available
     allodds <- foreach(n=nguides, gi=genei, .combine = cbind) %do% {
@@ -1016,7 +1016,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
               highe <- effectrange[min(hi)]
             }
           }
-          mean(approximate(function(e) {
+          optimize(function(e) {
             fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
             if (ebcfun != FALSE) {
               eodds <- oddscores(c(e, ebcr), 
@@ -1032,11 +1032,11 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
             o[o < log(minprob, 10)] <- log(minprob, 10) 
             o[o > -log(minprob, 10)] <- -log(minprob, 10)
             if (ebcfun != FALSE) {
-              sum(o)/sqrt(ncol(pmat))+eodds
+              abs(sum(o)/sqrt(ncol(pmat))+eodds)
             } else {
-              sum(o)/sqrt(ncol(pmat))
+              abs(sum(o)/sqrt(ncol(pmat)))
             }
-          }, 0, lowe, highe, 11, 2))
+          }, c(lowe, highe))$minimum
         }
       }
       if (exactci != FALSE) {
@@ -1060,7 +1060,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
                 highe <- effectrange[min(hi)]
               }
             }
-            mean(approximate(function(e) {
+            optimize(function(e) {
               fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
               if (ebcfun != FALSE) {
                 eodds <- oddscores(c(e, ebcr), 
@@ -1076,11 +1076,11 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
               o[o < log(minprob, 10)] <- log(minprob, 10) 
               o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
-                sum(o)/sqrt(ncol(pmat))+eodds
+                abs(sum(o)/sqrt(ncol(pmat))+eodds-log(plo/(1-plo),10))
               } else {
-                sum(o)/sqrt(ncol(pmat))
+                abs(sum(o)/sqrt(ncol(pmat))-log(plo/(1-plo),10))
               }
-            }, log(plo/(1-plo),10), lowe, highe, 11, 2))
+            }, c(lowe, highe))$minimum
           }
           exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
             lo <- which(allodds[gene,] < -log(plo/(1-plo),10))
@@ -1096,7 +1096,7 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
                 highe <- effectrange[min(hi)]
               }
             }
-            mean(approximate(function(e) {
+            optimize(function(e) {
               fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
               if (ebcfun != FALSE) {
                 eodds <- oddscores(c(e, ebcr), 
@@ -1112,29 +1112,37 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
               o[o < log(minprob, 10)] <- log(minprob, 10) 
               o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
-                sum(o)/sqrt(ncol(pmat))+eodds
+                abs(sum(o)/sqrt(ncol(pmat))+eodds+log(plo/(1-plo),10))
               } else {
-                sum(o)/sqrt(ncol(pmat))
+                abs(sum(o)/sqrt(ncol(pmat))+log(plo/(1-plo),10))
               }
-            }, -log(plo/(1-plo),10), lowe, highe, 11, 2))
+            }, c(lowe, highe))$minimum
           }
         }
         exactdf <- data.frame(gene = genes, 
                               exact = exactodds, 
                               lowerci = exactlow,
                               upperci = exacthigh)
-        return(list(range=allodds, exact=exactdf))
+        
+        if (output == "exact") {
+          return(exactdf)
+        } else {
+          return(list(range=allodds, exact=exactdf))
+        }
+        
       } else {
         names(exactodds) <- genes
-        return(list(range=allodds, exact=exactodds))
+        if (output == "exact") {
+          return(exactodds)
+        } else {
+          return(list(range=allodds, exact=exactodds))
+        }
       }
+        
     } else {return(allodds)}
   } else {
-    if (semiexact == TRUE) {
-      warning("Semiexact approximations require a range; proceeding with exact approximations!")
-    }
     exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
-      mean(approximate(function(e) {
+      optimize(function(e) {
         fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
         if (ebcfun != FALSE) {
           eodds <- oddscores(c(e, ebcr), 
@@ -1150,16 +1158,16 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
         o[o < log(minprob, 10)] <- log(minprob, 10) 
         o[o > -log(minprob, 10)] <- -log(minprob, 10)
         if (ebcfun != FALSE) {
-          sum(o)/sqrt(ncol(pmat))+eodds
+          abs(sum(o)/sqrt(ncol(pmat))+eodds)
         } else {
-          sum(o)/sqrt(ncol(pmat))
+          abs(sum(o)/sqrt(ncol(pmat)))
         }
-      }, 0, min(effectrange), max(effectrange), 11, 3))
+      }, c(min(effectrange), max(effectrange)))$minimum
     }
     if (exactci != FALSE) {
       plo <- (1-exactci)/2
       exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
-        mean(approximate(function(e) {
+        optimize(function(e) {
           fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
           if (ebcfun != FALSE) {
             eodds <- oddscores(c(e, ebcr), 
@@ -1175,14 +1183,14 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
           o[o < log(minprob, 10)] <- log(minprob, 10) 
           o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
-            sum(o)/sqrt(ncol(pmat))+eodds
+            abs(sum(o)/sqrt(ncol(pmat))+eodds-log(plo/(1-plo),10))
           } else {
-            sum(o)/sqrt(ncol(pmat))
+            abs(sum(o)/sqrt(ncol(pmat))-log(plo/(1-plo),10))
           }
-        }, log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+        }, c(min(effectrange), max(effectrange)))$minimum
       }
       exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
-        mean(approximate(function(e) {
+        optimize(function(e) {
           fc <- (g*2^((1+e)*a) + (1-g)*2^a)/2^a
           if (ebcfun != FALSE) {
             eodds <- oddscores(c(e, ebcr), 
@@ -1198,11 +1206,11 @@ geteffect_c <- function(guides, t1, t0, normfun = "sum", normsubset,
           o[o < log(minprob, 10)] <- log(minprob, 10) 
           o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
-            sum(o)/sqrt(ncol(pmat))+eodds
+            abs(sum(o)/sqrt(ncol(pmat))+eodds+log(plo/(1-plo),10))
           } else {
-            sum(o)/sqrt(ncol(pmat))
+            abs(sum(o)/sqrt(ncol(pmat))+log(plo/(1-plo),10))
           }
-        }, -log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+        }, c(min(effectrange), max(effectrange)))$minimum
       }
       exactdf <- data.frame(gene = genes, 
                             exact = exactodds, 
@@ -1297,7 +1305,7 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
   # I have noted I have to first bind the variables used in foreach...
   n <- gi <- gene <- i <- NULL
   
-  if (output == "range" || output == "both") {
+  if (output == "range" || output == "both" || semiexact == TRUE) {
     # I imagine it is beneficial to perform the outer loop in parallel using
     # %dopar% if a parallel backend is available
     allodds <- foreach(n=nguides, gi=genei, .combine = cbind) %do% {
@@ -1337,7 +1345,7 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
               highe <- effectrange[min(hi)]
             }
           }
-          mean(approximate(function(e) {
+          optimize(function(e) {
             fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
             if (ebcfun != FALSE) {
               eodds <- oddscores(c(e, ebcr), 
@@ -1352,11 +1360,11 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
             o[o < log(minprob, 10)] <- log(minprob, 10) 
             o[o > -log(minprob, 10)] <- -log(minprob, 10)
             if (ebcfun != FALSE) {
-              sum(o)/sqrt(ncol(pmat))+eodds
+              abs(sum(o)/sqrt(ncol(pmat))+eodds)
             } else {
-              sum(o)/sqrt(ncol(pmat))
+              abs(sum(o)/sqrt(ncol(pmat)))
             }
-          }, 0, lowe, highe, 11, 2))
+          }, c(lowe, highe))$minimum
         }
       }
       if (exactci != FALSE) {
@@ -1380,7 +1388,7 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
                 highe <- effectrange[min(hi)]
               }
             }
-            mean(approximate(function(e) {
+            optimize(function(e) {
               fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
               if (ebcfun != FALSE) {
                 eodds <- oddscores(c(e, ebcr), 
@@ -1395,11 +1403,11 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
               o[o < log(minprob, 10)] <- log(minprob, 10) 
               o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
-                sum(o)/sqrt(ncol(pmat))+eodds
+                abs(sum(o)/sqrt(ncol(pmat))+eodds-log(plo/(1-plo),10))
               } else {
-                sum(o)/sqrt(ncol(pmat))
+                abs(sum(o)/sqrt(ncol(pmat))-log(plo/(1-plo),10))
               }
-            }, log(plo/(1-plo),10), lowe, highe, 11, 2))
+            }, c(lowe, highe))$minimum
           }
           exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
             lo <- which(allodds[gene,] < -log(plo/(1-plo),10))
@@ -1415,7 +1423,7 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
                 highe <- effectrange[min(hi)]
               }
             }
-            mean(approximate(function(e) {
+            optimize(function(e) {
               fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
               if (ebcfun != FALSE) {
                 eodds <- oddscores(c(e, ebcr), 
@@ -1430,27 +1438,37 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
               o[o < log(minprob, 10)] <- log(minprob, 10) 
               o[o > -log(minprob, 10)] <- -log(minprob, 10)
               if (ebcfun != FALSE) {
-                sum(o)/sqrt(ncol(pmat))+eodds
+                abs(sum(o)/sqrt(ncol(pmat))+eodds+log(plo/(1-plo),10))
               } else {
-                sum(o)/sqrt(ncol(pmat))
+                abs(sum(o)/sqrt(ncol(pmat))+log(plo/(1-plo),10))
               }
-            }, -log(plo/(1-plo),10), lowe, highe, 11, 2))
+            }, c(lowe, highe))$minimum
           }
         }
         exactdf <- data.frame(gene = genes, 
                               exact = exactodds, 
                               lowerci = exactlow,
                               upperci = exacthigh)
-        return(list(range=allodds, exact=exactdf))
+        
+        if (output == "exact") {
+          return(exactdf)
+        } else {
+          return(list(range=allodds, exact=exactdf))
+        }
+        
       } else {
         names(exactodds) <- genes
-        return(list(range=allodds, exact=exactodds))
+        if (output == "exact") {
+          return(exactodds)
+        } else {
+          return(list(range=allodds, exact=exactodds))
+        }
       }
       
     } else {return(allodds)}
   } else {
     exactodds <- foreach(gene=seq_along(genes), .combine = c) %do% {
-      mean(approximate(function(e) {
+      optimize(function(e) {
         fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
         if (ebcfun != FALSE) {
           eodds <- oddscores(c(e, ebcr), 
@@ -1465,17 +1483,17 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
         o[o < log(minprob, 10)] <- log(minprob, 10) 
         o[o > -log(minprob, 10)] <- -log(minprob, 10)
         if (ebcfun != FALSE) {
-          sum(o)/sqrt(ncol(pmat))+eodds
+          abs(sum(o)/sqrt(ncol(pmat))+eodds)
         } else {
-          sum(o)/sqrt(ncol(pmat))
+          abs(sum(o)/sqrt(ncol(pmat)))
         }
-      }, 0, min(effectrange), max(effectrange), 11, 3))
+      }, c(min(effectrange), max(effectrange)))$minimum
     }
     
     if (exactci != FALSE) {
       plo <- (1-exactci)/2
       exactlow <- foreach(gene=seq_along(genes), .combine = c) %do% {
-        mean(approximate(function(e) {
+        optimize(function(e) {
           fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
           if (ebcfun != FALSE) {
             eodds <- oddscores(c(e, ebcr), 
@@ -1490,14 +1508,14 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
           o[o < log(minprob, 10)] <- log(minprob, 10) 
           o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
-            sum(o)/sqrt(ncol(pmat))+eodds
+            abs(sum(o)/sqrt(ncol(pmat))+eodds-log(plo/(1-plo),10))
           } else {
-            sum(o)/sqrt(ncol(pmat))
+            abs(sum(o)/sqrt(ncol(pmat))-log(plo/(1-plo),10))
           }
-        }, log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+        }, c(min(effectrange), max(effectrange)))$minimum
       }
       exacthigh <- foreach(gene=seq_along(genes), .combine = c) %do% {
-        mean(approximate(function(e) {
+        optimize(function(e) {
           fc <- log((g*2^((1+e)*a) + (1-g)*2^a)/2^a,2)
           if (ebcfun != FALSE) {
             eodds <- oddscores(c(e, ebcr), 
@@ -1512,11 +1530,11 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
           o[o < log(minprob, 10)] <- log(minprob, 10) 
           o[o > -log(minprob, 10)] <- -log(minprob, 10)
           if (ebcfun != FALSE) {
-            sum(o)/sqrt(ncol(pmat))+eodds
+            abs(sum(o)/sqrt(ncol(pmat))+eodds+log(plo/(1-plo),10))
           } else {
-            sum(o)/sqrt(ncol(pmat))
+            abs(sum(o)/sqrt(ncol(pmat))+log(plo/(1-plo),10))
           }
-        }, -log(plo/(1-plo),10), min(effectrange), max(effectrange), 11, 3))
+        }, c(min(effectrange), max(effectrange)))$minimum
       }
       exactdf <- data.frame(gene = genes, 
                             exact = exactodds, 
@@ -1530,43 +1548,19 @@ geteffect_r <- function(guides, r, rse, a, g, gw, gl = 11,
   }
 }
 
-approximate <- function(fun, solution, from, to, steps, depth) {
-  fun <- match.fun(fun)
-  for (i in seq_len(depth)) {
-    input <- seq(from, to, length.out = steps)
-    answers <- sapply(input, fun)
-    if (solution %in% answers) {
-      return(input[answers == solution])
-    } else {
-      diff <- answers-solution
-      lo <- which(diff < 0)
-      if (length(lo)==0) {
-        warning("solution out of range")
-        return(NaN)
-      }
-      hi <- which(diff > 0)
-      if (length(hi)==0) {
-        warning("solution out of range")
-        return(NaN)
-      }
-      if (max(lo) < max(hi)) {
-        from <- input[lo[tail(which(diff[lo]==max(diff[lo])),1)]]
-        to <- input[hi[head(which(diff[hi]==min(diff[hi])),1)]]
-      } else {
-        from <- input[lo[head(which(diff[lo]==max(diff[lo])),1)]]
-        to <- input[hi[tail(which(diff[hi]==min(diff[hi])),1)]]
-      }
-    }
-  }
-  return(c(from, to))
-}
-
 semiexact <- function(range, o) {
   as.numeric(apply(range, 1, function(x) {
     l <- tail(which(x < o), 1)
     h <- head(which(x > o), 1)
     lo <- as.numeric(names(x)[l])
     hi <- as.numeric(names(x)[h])
-    lo + (hi-lo)*(10^(x[l]+x[h]-2*o) / (1 + 10^(x[l]+x[h]-2*o)))
+    lo + (hi-lo)*(o-x[l])/(x[h]-x[l])
+    
+    # The line below was originally there to scale using probability as measure
+    # of distance between high and low. Elegant, but it turns out the
+    # approximation is better (apparently without exception!) when scaling
+    # linearly with the logodds, as is done above. 
+    
+    # lo + (hi-lo)*(10^(2*o-x[l]-x[h]) / (1 + 10^(2*o-x[l]-x[h])))
   }))
 }
